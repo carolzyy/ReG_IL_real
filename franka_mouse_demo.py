@@ -19,9 +19,9 @@ def show_camera():
         cv2.imwrite("camera.jpg", img)
 threading.Thread(target=show_camera, daemon=True).start()
 
-dataset_path = "/home/eric/VLA_datasets/duplicate_pots"
-if not Path(f"{dataset_path}/recorded").is_dir():
-    Path(f"{dataset_path}/recorded").mkdir(parents=True, exist_ok=True)
+dataset_path = Path.cwd()
+if not Path(f"{dataset_path}/dataset").is_dir():
+    Path(f"{dataset_path}/dataset").mkdir(parents=True, exist_ok=True)
 
 robot = Robot("172.16.0.2")
 robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.40, 0.60)
@@ -63,8 +63,8 @@ q.put(color_image)
 
 #language_instruction = input("Input the language instruction: ")
 parser = argparse.ArgumentParser()  
-parser.add_argument("language_instruction", type=str)
-language_instruction = parser.parse_args().language_instruction
+parser.add_argument("task_name", type=str)
+task_name = parser.parse_args().task_name
 
 input("Start the demo")
 spacemouse_init = pyspacemouse.open()
@@ -109,10 +109,10 @@ if spacemouse_init:
             q.put(color_image)
             step = {}
             step["robot_state"] = robot.state #save full state instead of just O_T_EE, because size is neglible compared to image data
+            step['motion'] = motion
             #step["gripper_state"] = gripper.state #NOTE: this actually takes takes quite some time as getting the GRIPPER STATE which is not realtime!!
             step["gripper_command"] = gripper_open #use commanded gripper state instead
             step["image"] = color_image.copy()
-            step["language_instruction"] = language_instruction
 
             episode.append(step)
 
@@ -128,10 +128,10 @@ if spacemouse_init:
     save_ep = input("Save episode (Y/N)?")
 
     if save_ep.upper() == "Y":
-        ids = [int(re.search("episode(.*).npy", file).group(1)) for file in glob.glob(f"{dataset_path}/recorded/episode*.npy")]
+        ids = [int(re.search("episode(.*).npy", file).group(1)) for file in glob.glob(f"{dataset_path}/dataset/episode*.npy")]
         ep_id = max(ids)+1 if ids else 0
-        np.save(f"{dataset_path}/recorded/episode{ep_id}.npy", episode)
-        print(f"Demonstration saved in {dataset_path}/recorded/episode{ep_id}.npy")
+        np.save(f"{dataset_path}/dataset/{task_name}_{ep_id}.npy", episode)
+        print(f"Demonstration saved in {dataset_path}/dataset/{task_name}_{ep_id}.npy")
     else:
         print("Demonstration not saved")
 
