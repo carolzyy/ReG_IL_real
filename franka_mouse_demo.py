@@ -11,6 +11,7 @@ import glob
 import re
 from pathlib import Path
 import argparse
+from utils import manual_open_mouse
 
 q = queue.Queue(maxsize=1) #only save the latest image
 def show_camera():
@@ -19,7 +20,7 @@ def show_camera():
         cv2.imwrite("camera.jpg", img)
 threading.Thread(target=show_camera, daemon=True).start()
 
-dataset_path = "/home/eric/VLA_datasets/duplicate_pots"
+dataset_path = Path.cwd()
 if not Path(f"{dataset_path}/recorded").is_dir():
     Path(f"{dataset_path}/recorded").mkdir(parents=True, exist_ok=True)
 
@@ -67,14 +68,14 @@ parser.add_argument("language_instruction", type=str)
 language_instruction = parser.parse_args().language_instruction
 
 input("Start the demo")
-spacemouse_init = pyspacemouse.open()
+mouse = manual_open_mouse()
 
-if spacemouse_init:
+if mouse:
     start_time = time.time()
     last_time = start_time
     recording = True
     while recording:
-        state = pyspacemouse.read()
+        state = mouse.read()
 
         noise = np.random.normal(0,0.1,6)
 
