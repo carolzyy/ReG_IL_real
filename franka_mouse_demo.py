@@ -11,6 +11,7 @@ import glob
 import re
 from pathlib import Path
 import argparse
+from utils import manual_open_mouse
 
 q = queue.Queue(maxsize=1) #only save the latest image
 def show_camera():
@@ -20,8 +21,8 @@ def show_camera():
 threading.Thread(target=show_camera, daemon=True).start()
 
 dataset_path = Path.cwd()
-if not Path(f"{dataset_path}/dataset").is_dir():
-    Path(f"{dataset_path}/dataset").mkdir(parents=True, exist_ok=True)
+if not Path(f"{dataset_path}/recorded").is_dir():
+    Path(f"{dataset_path}/recorded").mkdir(parents=True, exist_ok=True)
 
 robot = Robot("172.16.0.2")
 robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.40, 0.60)
@@ -67,14 +68,14 @@ parser.add_argument("task_name", type=str)
 task_name = parser.parse_args().task_name
 
 input("Start the demo")
-spacemouse_init = pyspacemouse.open()
+mouse = manual_open_mouse()
 
-if spacemouse_init:
+if mouse:
     start_time = time.time()
     last_time = start_time
     recording = True
     while recording:
-        state = pyspacemouse.read()
+        state = mouse.read()
 
         noise = np.random.normal(0,0.1,6)
 
@@ -109,10 +110,10 @@ if spacemouse_init:
             q.put(color_image)
             step = {}
             step["robot_state"] = robot.state #save full state instead of just O_T_EE, because size is neglible compared to image data
-            step['motion'] = motion
             #step["gripper_state"] = gripper.state #NOTE: this actually takes takes quite some time as getting the GRIPPER STATE which is not realtime!!
             step["gripper_command"] = gripper_open #use commanded gripper state instead
             step["image"] = color_image.copy()
+            step["language_instruction"] = language_instruction
 
             episode.append(step)
 
