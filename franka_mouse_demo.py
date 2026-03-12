@@ -97,7 +97,9 @@ if mouse:
         #EE_delta_linear = Rotation.from_quat(robot.state.O_T_EE.quaternion).apply(base_delta_linear)
         EE_delta_rot = Rotation.from_euler("xyz", [roll_scaling*(state.roll+noise[3]), pitch_scaling*(state.pitch+noise[4]), -yaw_scaling*(state.yaw+noise[5])]).as_euler("xyz") #RPY is applied as EE frame rotations directly, axis signs flipped so that spacemouse is aligned with gripper down in typical starting pose
 
+        #end effector Cartesian velocity motion with linear (first argument) and angular (second argument)
         motion = CartesianVelocityMotion(Twist(base_delta_linear, EE_delta_rot), relative_dynamics_factor=motion_dynamics_factor)
+
         robot.move(motion, asynchronous=True)
         
         if time.time()-last_time >= 1/recording_frequency:
@@ -112,14 +114,10 @@ if mouse:
             step["robot_state"] = robot.state #save full state instead of just O_T_EE, because size is neglible compared to image data
             #step["gripper_state"] = gripper.state #NOTE: this actually takes takes quite some time as getting the GRIPPER STATE which is not realtime!!
             step["gripper_command"] = gripper_open #use commanded gripper state instead
+            step["motion"] = motion
             step["image"] = color_image.copy()
-            step["language_instruction"] = language_instruction
 
             episode.append(step)
-
-            #print("processing time:", time.time()-start_processing)
-            #print("elapsed time: ", time.time()-last_time)
-            #print("cumulative time:", time.time() - start_time)
             last_time = time.time()
 
         time.sleep(0.001)

@@ -47,7 +47,8 @@ while(True):
     color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
     #Example of Cartesian relative motion (end effector delta), assuming your model has generated this:
     #ASSUMPTION THAT MODEL HAS PRODUCED "action" which contains [delta_x, delta_y, delta_z, delta_roll, delta_pitch, delta_yaw, grippper(binary)]
-    EE_delta = Affine(action[0:3], Rotation.from_euler("xyz", action[3:6]).as_quat()) 
+    EE_delta = Affine(action[0:3], Rotation.from_euler("xyz", action[3:6]).as_quat())
+    # A linear motion in Cartesian space relative to the initial position
     motion = CartesianMotion(EE_delta, ReferenceType.Relative, relative_dynamics_factor=motion_dynamics_factor)
     robot.move(motion, asynchronous=True) #async = interupts motion with next command when it arrives
     
