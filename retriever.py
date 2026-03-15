@@ -83,7 +83,7 @@ class Retriever():
 
         return state_subset
 
-    def get_traj_index_from_subset_traj(self,current_traj,state_subset,retrieve_list):
+    def get_traj_index_from_subset_traj(self,current_traj,state_subset):
 
         length = min( len(current_traj),self.re_history_len )
         current_history_traj = current_traj[-length:]
@@ -93,7 +93,7 @@ class Retriever():
         #index_map = []
 
         for i, (state_idx, score) in enumerate(state_subset):
-            traj = retrieve_list['observations']
+            traj = self.exp_traj['observations']
             if 'observation' in traj.keys():
                 traj = traj['observation']
             if self.traj_metric == 'ot':
@@ -266,5 +266,6 @@ for i in range(10,128):
     retrieve_state_idx_s,retrieve_state_idx_end,best_dist,path_len = retiever.get_traj_index_from_subset_traj(
                         current_traj,
                         state_subset,
-                        retiever.exp_traj)
+                        #retiever.exp_traj
+    )
     print(f'Demo {i}th state_idx : retrieve_state_idx_s is {retrieve_state_idx_end}')
