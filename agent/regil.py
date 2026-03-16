@@ -1,5 +1,5 @@
 import einops
-import math
+import os
 from collections import deque
 import torch.nn.functional as F
 import torch
@@ -7,12 +7,11 @@ from torch import nn
 
 import copy
 
-import utils,os
+import utils.net_utils as utils
 from agent.networks.rgb_modules import BaseEncoder, ResnetEncoder
 
-from agent.networks.gpt import GPT, GPTConfig
 from agent.networks.mlp import MLP
-from retrieve.retrieve import get_retriever
+from agent.retriever import get_retriever
 import numpy as np
 
 
@@ -123,17 +122,17 @@ class ReplayBuffer:
             self.expert_size = min(self.expert_size + 1, self.expert_max_size)
 
     def add_demo(self, traj):
-        indices = np.arange(self.expert_ptr, self.expert_ptr+len(traj['action']))
+        indices = np.arange(self.expert_ptr, self.expert_ptr+len(traj['actions']))
 
         for idx in indices:
             exp_i = self.expert_ptr
 
             # copy observations
-            self.exp_obs['pixels'][exp_i] = traj['observation']['pixels'][idx].transpose(2, 0, 1)
+            self.exp_obs['pixels'][exp_i] = traj['observations']['pixels'][idx] #.transpose(2, 0, 1)
 
             # copy actions
-            self.exp_actions['policy'][exp_i] = traj['action'][idx]
-            self.exp_actions['retrieve'][exp_i] = traj['action'][idx]
+            self.exp_actions['policy'][exp_i] = traj['actions'][idx]
+            self.exp_actions['retrieve'][exp_i] = traj['actions'][idx]
 
             # advance expert pointer
             self.expert_ptr = (self.expert_ptr + 1) % self.expert_max_size
@@ -779,32 +778,29 @@ class RegAgent:
 
         return metrics
 
-    def init_demos(self,demos,skip=None,eval=False):
+    def init_demos(self,traj,skip=None,eval=False):
         if skip is None:
-            self.demo = demos
+            self.demo = traj
         else:
-            self.demo = []
-            for traj in demos:
-                traj_len = len(traj['action'])
-                new_len = traj_len // skip
-                idx = np.linspace(0, traj_len - 1, new_len).astype(int)
-                save_traj = {}
-                save_traj['action'] =  self.preprocess["actions"](traj['action'][idx,])
-                save_traj['task_emb'] = traj.get('task_emb', None)
-                for key in traj['observation'].keys():
-                    if key in self.preprocess.keys():
-                        save_traj[key] = self.preprocess[key](traj['observation'][key][idx])
-                    else:
-                        save_traj[key] = traj['observation'][key][idx]
-                self.demo.append(save_traj)
+            #self.demo = []
+            traj_len = len(traj['actions'])
+            new_len = traj_len // skip
+            idx = np.linspace(0, traj_len - 1, new_len).astype(int)
+            save_traj = {}
+            save_traj['actions'] =  self.preprocess["actions"](traj['actions'][idx,])
+            for key in traj['observations'].keys():
+                if key in self.preprocess.keys():
+                    save_traj[key] = self.preprocess[key](traj['observations'][key][idx])
+                else:
+                    save_traj[key] = traj['observations'][key][idx]
+            self.demo=save_traj
 
             if not eval:
-                for traj in demos:
-                    traj_len = len(traj['action'])
-                    if traj_len>0:
-                        self.buff.add_demo(traj)
-                    else:
-                        print('Demo is not valid')
+                traj_len = len(traj['actions'])
+                if traj_len>0:
+                    self.buff.add_demo(traj)
+                else:
+                    print('Demo is not valid')
 
         return self.demo
 
@@ -899,16 +895,16 @@ class RegAgent:
 
                 refine_sub = self.refine_state_subset(state_subset)
 
-                retrieve_traj_idx, retrieve_state_idx_s,retrieve_state_idx_end,best_dist,path_len = self.retriver.get_traj_index_from_subset_traj(
+                retrieve_state_idx_s,retrieve_state_idx_end,best_dist,path_len = self.retriver.get_traj_index_from_subset_traj(
                     sample_retrieve_traj,
                     refine_sub,
                     self.demo)
 
-        end_idx = min(retrieve_state_idx_end+self.retrieve_len,len(self.demo[retrieve_traj_idx]['action']))
+        end_idx = min(retrieve_state_idx_end+self.retrieve_len,len(self.demo['actions']))
 
-        retrived_traj = self.demo[retrieve_traj_idx]
+        retrived_traj = self.demo
         retrieved_obs = retrived_traj[self.pixel_keys[0]][retrieve_state_idx_end:end_idx]
-        retrieved_act = retrived_traj['action'][retrieve_state_idx_end:end_idx]
+        retrieved_act = retrived_traj['actions'][retrieve_state_idx_end:end_idx]
 
         retrieved_feature = retrived_traj['retrieve_feature'][retrieve_state_idx_end:end_idx]
         context = {
@@ -919,12 +915,10 @@ class RegAgent:
 
         return context,best_dist,retrieve_state_idx_s,retrieve_state_idx_end,path_len
 
-    def add_buffer(self,time_step, next_time_step,retrive_reward, retrieve_action):
-        obs = time_step.observation.copy()
-        next_obs = next_time_step.observation.copy()
+    def add_buffer(self,observation, next_observation,done,policy_action,retrive_reward, retrieve_action):
+        obs = observation.copy()
+        next_obs = next_observation.copy()
         reward =retrive_reward
-        done = next_time_step.last()
-        policy_action =next_time_step.action
 
         act_dict={
             'policy':self.preprocess['actions'](policy_action),
@@ -934,14 +928,10 @@ class RegAgent:
 
 
     def refine_state_subset(self,state_subset,time_step=None):
-        refine_subset = {}
-        for (traj_id, state_id), score in state_subset:
-            # If this traj is new OR this state_id is larger, replace it
-            if traj_id not in refine_subset or state_id > refine_subset[traj_id][0][1]:
-                refine_subset[traj_id] = ((traj_id, state_id), score)
+        max_pair = max(state_subset, key=lambda x: x[1])
 
         # Return in the original format as a list
-        return list(refine_subset.values())
+        return [max_pair]
 
     def save_snapshot(self, save_dir):
         if self.update_cnt<10:

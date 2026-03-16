@@ -7,7 +7,7 @@ import pickle
 from scipy.spatial.transform import Rotation
 import pyrealsense2 as rs
 from franky import *
-from utils import manual_open_mouse
+
 
 def get_quaternion_orientation(cartesian):
     """
@@ -38,6 +38,7 @@ class Robot():
         self.recording_frequency = 30
         self.gripper_open = True
         if use_mouse:
+            from utils.robot_utils import manual_open_mouse
             self.mouse = manual_open_mouse()
             recording_frequency = 30
             linear_scaling = 0.15
@@ -96,24 +97,28 @@ class RobotEnv(gym.Env):
         height=224,
         width=224,
         use_robot=True,  # True when robot used
+        max_path_length = 99
     ):
         super(RobotEnv, self).__init__()
         self.height = height
         self.width = width
         self.use_robot = use_robot
         self.feature_dim = 8
-        self.action_dim = 5 #（dx,dy,dz,gripper)
+        self.action_dim = 4 #（dx,dy,dz,gripper)
 
         self.n_channels = 3
         self.reward = 0
         self.recording_frequency = 30
         self.gripper_open = True
         self.motion_dynamics_factor = 0.10
+        self.max_path_length =max_path_length
+        self.robot = None
 
-        self.observation_space = spaces.Box(
+
+        self.observation_spec = spaces.Box(
             low=0, high=255, shape=(height, width, self.n_channels), dtype=np.uint8
         )
-        self.action_space = spaces.Box(
+        self.action_spec = spaces.Box(
             low=0.0, high=1.0, shape=(self.action_dim,), dtype=np.float32
         )
 
@@ -128,61 +133,72 @@ class RobotEnv(gym.Env):
         print("current step's action is: ", action)
 
         action = np.array(action)
-
-        self.robot.act(action)
-
-        # subscribe images
-        image_list = []
-        for subscriber in self.image_subscribers:
-            image_list.append(subscriber.recv_rgb_image()[0])
+        if self.robot is not None:
+            self.robot.act(action)
+        else:
+            print("no robot")
 
         obs = {}
-        obs["features"] = np.array(robot_state, dtype=np.float32)
-        for idx, image in enumerate(image_list):
-            obs[f"pixels{idx}"] = cv2.resize(image, (self.width, self.height))
+        obs[f"pixels"] = self.get_frame()
 
-        return obs, self.reward, False, None
+        if self.episode_step == self.max_path_length:
+            done = True
+        else:
+            done = False
+
+        return obs, done #, None #obs, reward, done, info
+
+    def get_frame(self):
+        frame = self.pipe.wait_for_frames()
+        color_frame = frame.get_color_frame()
+        color_image = np.asanyarray(color_frame.get_data())
+        x_center = int(np.size(color_image, 1) / 2)
+        color_image = color_image[:, x_center - 240:x_center + 240] #480,480
+        # cv2 imshow uses bgr channel ordering, but if your model was trained on rgb you would need to switch channel order here
+        color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+
+        return color_image
 
     def reset(self):  # currently same positions, with gripper opening
         if self.use_robot:
             print("resetting")
-            self.action_request_socket.send(b"reset")
-            reset_state = pickle.loads(self.action_request_socket.recv())
-
-            # subscribe robot state
-            self.action_request_socket.send(b"get_state")
-            robot_state = pickle.loads(self.action_request_socket.recv())["xarm"]
-            cartesian = robot_state[:6]
-            quat_cartesian = get_quaternion_orientation(cartesian)
-            robot_state = np.concatenate([quat_cartesian, robot_state[6:]], axis=0)
-
-            # subscribe images
-            image_list = []
-            for subscriber in self.image_subscribers:
-                image_list.append(subscriber.recv_rgb_image()[0])
+            self.robot.robot_reset()
 
             obs = {}
-            obs["features"] = robot_state
-            for idx, image in enumerate(image_list):
-                obs[f"pixels{idx}"] = cv2.resize(image, (self.width, self.height))
+            obs["pixels"] = self.get_frame()
 
             return obs
         else:
             obs = {}
-            obs["features"] = np.zeros(self.feature_dim)
-            obs["pixels"] = np.zeros((self.height, self.width, self.n_channels))
-            return obs
+            #obs["features"] = np.zeros(self.feature_dim)
+            obs["pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
+            return obs,False
 
     def render(self, mode="rgb_array", width=640, height=480):
         print("rendering")
-        # subscribe images
-        image_list = []
-        for subscriber in self.image_subscribers:
-            image = subscriber.recv_rgb_image()[0]
-            image_list.append(cv2.resize(image, (width, height)))
-
-        obs = np.concatenate(image_list, axis=1)
+        obs["pixels"] = self.get_frame()
         return obs
+
+def make(
+    frame_stack,
+    action_repeat,
+    seed,
+    height,
+    width,
+    max_episode_len,
+    eval,
+    pixel_keys
+):
+    # Convert task_names, which is a list, to a dictionary
+    #tasks = tasks
+    env = RobotEnv(
+                   height=height,
+                   width=width,
+                   use_robot=False,
+                   max_path_length=max_episode_len
+                   )
+
+    return env
 
 
 if __name__ == "__main__":

@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+
+import warnings
+import os
+from pathlib import Path
+
+import hydra
+import torch
+import random
+import numpy as np
+from pathlib import Path
+
+import utils.net_utils as utils
+from logger import Logger
+from video import VideoRecorder
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+torch.backends.cudnn.benchmark = True
+
+
+def make_agent(obs_spec, action_spec, cfg):
+    obs_shape = {}
+    for key in cfg.suite.pixel_keys:
+        obs_shape[key] = obs_spec.shape
+    cfg.agent.obs_shape = obs_shape
+    cfg.agent.action_shape = action_spec.shape
+    return hydra.utils.instantiate(cfg.agent)
+
+def set_seed_everywhere(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+class WorkspaceIL:
+    def __init__(self, cfg):
+        self.work_dir = Path.cwd()
+        print(f"workspace: {self.work_dir}")
+
+        self.cfg = cfg
+        set_seed_everywhere(cfg.seed)
+        self.device = torch.device(cfg.device)
+
+        # load data
+        task_idx = 0
+        data_path =self.cfg.suite.data_path
+        task = self.cfg.suite.task.tasks[task_idx]
+        data = np.load(f'{data_path}/{task}.npy',allow_pickle=True).item()
+        self.all_demos = data
+
+
+        # create envs
+        self.cfg.suite.task_make_fn.max_episode_len =  len(data['actions']) + 10
+        self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
+
+        # create logger
+        self.logger = Logger(self.work_dir, use_tb=self.cfg.use_tb,mode='rl')
+
+        # create agent
+        self.agent = make_agent(
+            self.env.observation_spec, self.env.action_spec, cfg
+        )
+
+        if self.cfg.agent.name == 'bc':
+            self.cfg.suite.num_train_steps = 100000
+            self.cfg.suite.save_every_steps = self.cfg.suite.eval_every_steps
+
+
+        self.timer = utils.Timer()
+        self._global_step = 0
+        self._global_episode = 1
+
+        self.video_recorder = VideoRecorder(
+            self.work_dir if self.cfg.save_video else None
+        )
+
+    @property
+    def global_step(self):
+        return self._global_step
+
+    @property
+    def global_episode(self):
+        return self._global_episode
+
+    @property
+    def global_frame(self):
+        return self.global_step * self.cfg.suite.action_repeat
+
+    def eval(self):
+        print(f'======================Statr eval==============================')
+        self.agent.train(False)
+        episode_rewards_gt,episode_rewards = [],[]
+        successes = []
+        ep_reward_dict = {}
+        episode, total_reward_gt,total_reward = 0, 0, 0
+        eval_until_episode = utils.Until(self.cfg.suite.num_eval_episodes)
+        success = []
+
+        while eval_until_episode(episode):
+            observation = self.env.reset()
+            self.agent.buffer_reset(observation)
+            step = 0
+
+
+            if episode == 0:
+                self.video_recorder.init(self.env, enabled=True)
+
+            # plot obs with cv2
+            while not done :
+
+                with torch.no_grad(), utils.eval_mode(self.agent):
+                    action = self.agent.act(
+                        observation,
+                        step=step,
+                        eval_mode=True,
+                    )
+                next_observation, done = self.env.step(action.squeeze())
+                self.video_recorder.record(self.env)
+                retrive_reward, retrieve_action,reward_dict = self.agent.get_reward(next_observation)
+                if retrive_reward is not None:
+                    total_reward = total_reward + retrive_reward
+                for name in reward_dict.keys():
+                    ep_reward_dict[name] = ep_reward_dict.get(name, 0) + reward_dict[name]
+                step += 1
+
+            episode += 1
+            self.video_recorder.save(f"eval_{self.global_step}.mp4")
+            episode_rewards_gt.append(total_reward_gt / episode)
+            episode_rewards.append(total_reward / episode)
+
+        with self.logger.log_and_dump_ctx(self.global_step, ty="eval") as log:
+            for env_idx, reward in enumerate(episode_rewards):
+                log(f"episode_reward", reward)
+            log("episode", episode)
+            log("step", self.global_step)
+            for name in ep_reward_dict.keys():
+                log(name, ep_reward_dict[name] / (episode + 1e-6))
+
+        self.agent.train(True)
+
+    def train(self):
+        ep_mean_reward_list = []
+
+        # Initialize demonstrations for this environment
+        self.agent.init_demos(self.all_demos,skip=self.cfg.suite.demo_skip)
+
+        # Step schedulers
+        train_until_step = utils.Until(self.cfg.suite.num_train_steps, 1)
+        #log_every_episodes = utils.Every( self.cfg.suite.log_every_episodes**100, 1) #self.cfg.suite.log_every_steps
+        log_every_step = utils.Every(self.cfg.suite.log_every_steps, 1)
+        eval_every_step = utils.Every(self.cfg.suite.eval_every_steps, 1)
+        save_every_step = utils.Every(self.cfg.suite.save_every_steps, 1)
+
+
+        observation,done = self.env.reset()
+        self.agent.buffer_reset(observation)
+
+        episode_step = 0
+        episode_reward = 0
+        ep_reward_dict = {}
+
+
+        while train_until_step(self.global_step):
+            if (self.global_episode % self.cfg.video_every_episode == 0) and not (self.train_video_recorder.enabled):
+                self.train_video_recorder.init(observation['pixels'], enabled=True)
+            if (
+                self.cfg.eval
+                and eval_every_step(self.global_step)
+                and self.global_step > 0
+            ):
+                self.logger.log(
+                    "eval_total_time", self.timer.total_time(), self.global_frame
+                )
+                self.eval()
+                observation,done = self.env.reset()
+                self.agent.buffer_reset(observation)
+            with torch.no_grad():
+                policy_action = self.agent.act(obs = observation.copy(),
+                                        step = episode_step,
+                                        expl_noise = 0.1,
+                                        )
+
+            next_observation,done = self.env.step(policy_action)
+
+            self.agent.update_obs_and_retrieve(next_observation)
+
+            if self.train_video_recorder.enabled:
+                self.train_video_recorder.record(next_observation['pixels'])
+
+            retrive_reward,retrieve_action,reward_dict = self.agent.get_reward(next_observation)
+            episode_reward += retrive_reward
+            for name in reward_dict.keys():
+                ep_reward_dict[name] = ep_reward_dict.get(name,0) + reward_dict[name]
+            self.agent.add_buffer(observation, next_observation,done,policy_action,retrive_reward, retrieve_action)
+
+
+            metrics = self.agent.update() #self.expert_replay_iter
+
+            self.logger.log_metrics(metrics, self.global_frame, ty="train")
+
+
+            if done :
+                if self.train_video_recorder.enabled:
+                    self.train_video_recorder.save(
+                        f"train_step{self.global_step}_ep{self._global_episode}.mp4"
+                    )
+                    self.train_video_recorder.enabled = False
+                ep_mean_reward_list.append(episode_reward)
+                # reset episode
+                observation,done = self.env.reset()
+                self.agent.buffer_reset(observation)
+
+
+
+                should_record = (self._global_episode % self.cfg.video_every_episode == 0)
+                if should_record and self.cfg.save_train_video:
+                    # init will set enabled=True for the recorder; make sure it's done only once
+                    self.train_video_recorder.init(observation['pixels'], enabled=True)
+
+                episode_reward = 0
+
+                episode_step = 0
+                self._global_episode = self._global_episode + 1
+
+            else:
+                observation = next_observation
+                episode_step += 1
+
+            # log
+            if log_every_step(self.global_step+1):
+                elapsed_time, total_time = self.timer.reset()
+                with self.logger.log_and_dump_ctx(self.global_frame, ty="train") as log:
+                    log("total_time", total_time)
+                    log("step", self.global_step)
+                    log("reward", np.mean(ep_mean_reward_list) ) #.sum() / len(ep_mean_reward_list))
+                    for name in metrics.keys():
+                        log(name, metrics[name])
+
+                    for name in ep_reward_dict.keys():
+                        log(name, ep_reward_dict[name]/( len(ep_mean_reward_list)+1e-6))
+                    ep_mean_reward_list = []
+                    ep_reward_dict = {}
+
+
+            # save snapshot
+            if save_every_step(self.global_step):
+                self.save_snapshot()
+            self._global_step += 1
+
+
+    def save_snapshot(self):
+        snapshot_dir = self.work_dir / "snapshot"
+        snapshot_dir.mkdir(exist_ok=True)
+        self.agent.save_snapshot(snapshot_dir)
+
+    def load_snapshot(self, snapshots):
+        # bc
+        with snapshots["bc"].open("rb") as f:
+            payload = torch.load(f)
+        agent_payload = {}
+        for k, v in payload.items():
+            if k not in self.__dict__:
+                agent_payload[k] = v
+        self.agent.load_snapshot(agent_payload, eval=False)
+
+
+@hydra.main(config_path="cfgs", config_name="config")
+def main(cfg):
+    #from train_robot import WorkspaceIL as W
+
+    root_dir = Path.cwd()
+    workspace = WorkspaceIL(cfg)
+
+    # Load weights
+    if cfg.load_bc:
+        snapshots = {}
+        bc_snapshot = Path(cfg.bc_weight)
+        if not bc_snapshot.exists():
+            raise FileNotFoundError(f"bc weight not found: {bc_snapshot}")
+        print(f"loading bc weight: {bc_snapshot}")
+        snapshots["bc"] = bc_snapshot
+        workspace.load_snapshot(snapshots)
+
+    workspace.train()
+
+
+if __name__ == "__main__":
+    main()

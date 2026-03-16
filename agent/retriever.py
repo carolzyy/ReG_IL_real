@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from encoders import get_encoders
+from utils.encoders import get_encoders
 #from utils import *
 
 class Retriever():
@@ -83,8 +83,10 @@ class Retriever():
 
         return state_subset
 
-    def get_traj_index_from_subset_traj(self,current_traj,state_subset):
+    def get_traj_index_from_subset_traj(self,current_traj,state_subset,traj=None):
 
+        if traj is None:
+            traj = self.exp_traj['observations']
         length = min( len(current_traj),self.re_history_len )
         current_history_traj = current_traj[-length:]
         best_cost = float('inf')
@@ -93,7 +95,7 @@ class Retriever():
         #index_map = []
 
         for i, (state_idx, score) in enumerate(state_subset):
-            traj = self.exp_traj['observations']
+
             if 'observation' in traj.keys():
                 traj = traj['observation']
             if self.traj_metric == 'ot':
@@ -238,6 +240,7 @@ def get_retriever(
 
     return retiever
 
+'''
 re_history_len = 5
 retiever = get_retriever(
     retrieve_key='DINO',
@@ -269,3 +272,4 @@ for i in range(10,128):
                         #retiever.exp_traj
     )
     print(f'Demo {i}th state_idx : retrieve_state_idx_s is {retrieve_state_idx_end}')
+'''
