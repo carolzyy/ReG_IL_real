@@ -22,16 +22,10 @@ def get_quaternion_orientation(cartesian):
 class Robot():
     def __init__(
         self,
-        height=224,
-        width=224,
-        use_camera=True,
         action_dim = 4,
         use_mouse=False,
     ):
         super(Robot, self).__init__()
-        self.height = height
-        self.width = width
-        self.use_camera = use_camera
         self.action_dim = action_dim #（dx,dy,dz,gripper)
 
         self.n_channels = 3

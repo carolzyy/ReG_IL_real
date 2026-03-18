@@ -109,7 +109,7 @@ def check_franka_interface(robot_ip="172.16.0.2"):
             robot.move(motion2,asynchronous=False)
 
             # If E-Stop is pressed, mode usually switches to UserStopped or Reflex
-            if "Stopped" in str(current_mode) or "Reflex" in str(current_mode):
+            if "Stopped" in str(current_mode):
                 print(f"[SYSTEM ALERT] Robot is in {current_mode} mode!")
             elif "Stopped" in str(last_mode) or "Reflex" in str(last_mode):
                 print(f"[SYSTEM ALERT] Robot is recoverying")
@@ -117,13 +117,47 @@ def check_franka_interface(robot_ip="172.16.0.2"):
                 init_config = JointMotion([0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375, 0.785398163397]) #0.0 > 0.001 to avoid errors
                 robot.move(init_config)
 
-
             # Small sleep to prevent CPU saturation
             time.sleep(0.5)
     except ControlException as e:
             print(f'{e}')
+            current_mode = robot.state.robot_mode
 
-check_franka_interface(robot_ip="172.16.0.2")
+def check_btn_log(robot_ip="172.16.0.2"):
+    print("-----Testing robot connection-----------")
+    robot = Robot(robot_ip)
+    robot.recover_from_errors()
+    robot.relative_dynamics_factor = 0.05
+
+    init_config = JointMotion([0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375,
+                               0.785398163397])  # 0.0 > 0.001 to avoid errors
+    robot.move(init_config)
+    motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
+    motion2 = CartesianMotion(Affine([-0.2, 0.0, 0.0]), ReferenceType.Relative)
+    while True:  # 最外层循环，保证程序报错后不退出
+        try:
+            # 1. 正常的运动逻辑
+            print("正在执行运动任务...")
+            robot.move(motion1, asynchronous=False)
+            time.sleep(0.5)
+            robot.move(motion2, asynchronous=False)
+        except ControlException as e:
+            print(f"Error detected: {e}")
+            while "Stopped" in str(robot.state.robot_mode) or "Reflex" in str(robot.state.robot_mode):
+                time.sleep(0.2)  #maybe have some problem with the status changing
+
+            print("Button released, try recovery")
+
+            try:
+                robot.recover_from_errors()
+                time.sleep(0.5)
+
+                init_config = JointMotion([0.001, -0.041, 0.001, -2.478, 0.001, 2.478, 0.785])
+                robot.move(init_config)
+                print("robot recoveried")
+            except Exception as recovery_e:
+                print(f"恢复失败: {recovery_e}，将重新尝试...")
+
 
 def test_mouse_hid():
     print("-----Testing mouse data read with hid library-----------")

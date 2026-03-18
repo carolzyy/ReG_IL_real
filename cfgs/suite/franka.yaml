@@ -1,0 +1,50 @@
+# @package suite
+defaults:
+  - _self_
+  - task: franka
+
+suite: franka
+name: "franka"
+
+# task settings
+frame_stack: 1
+action_repeat: 1
+discount: 0.99
+hidden_dim: 256
+
+# train settings
+num_train_steps: 601000
+log_every_steps: 1000
+save_every_steps: 50000
+history: false
+history_len: 10
+
+# eval
+eval_every_steps: 200000
+num_eval_episodes: 5
+eval_history_len: 5
+
+# data loading
+action_after_steps: 1 #8
+
+# obs_keys
+pixel_keys: ["pixels"]
+feature_key: 'features'
+
+demo_skip: 2
+# snapshot
+save_snapshot: true
+data_path: ${root_dir}/expert_demos/
+
+task_make_fn:
+  _target_: env.franka_env.make
+  frame_stack: ${suite.frame_stack}
+  action_repeat: ${suite.action_repeat}
+  seed: ${seed}
+  height: 480
+  width: 480
+  max_episode_len: ??? # to be specified later
+  pixel_keys: ${suite.pixel_keys}
+  eval: ${eval} # eval true mean use robot
+  act_max: ???
+  act_min: ???

@@ -1,0 +1,51 @@
+defaults:
+  - _self_
+  - agent: regil #regicl #
+  - suite: libero
+  - dataloader: libero
+#  - override hydra/launcher: submitit_local
+
+# Root Dir
+root_dir: /home/carol/Project/4-RegIC_IL/code
+
+# misc
+seed: 2
+device: cuda
+save_video: true
+save_train_video: false
+use_tb: true
+batch_size: 64
+
+# experiment
+obs_type: "pixels" # pixels, features
+num_demos_per_task: 2
+encoder_type: 'resnet' # base, resnet
+policy_type: 'gpt' # mlp, gpt
+policy_head: deterministic # deterministic, gmm, bet, diffusion, vqbet
+use_proprio: true
+use_language: false
+use_actions: false
+eval: true
+prompt: text # text, goal, intermediate_goal
+experiment: eval
+experiment_label: ${policy_head}
+
+# action chunking
+temporal_agg: false # aggregate actions over time
+num_queries: 10
+
+# retrieve
+retrieve: false
+retrieve_len: 5
+re_history_len: 5
+context_len: 50
+
+# expert dataset
+expert_dataset: ${dataloader.bc_dataset}
+
+# Load weights
+bc_weight: /home/carol/Project/4-RegIC_IL/code/ReG_ICL/exp_local/2025.12.09_train/regil/160421_hidden_dim_256/snapshot
+
+hydra:
+  run:
+    dir: ./exp_local/eval/${now:%Y.%m.%d}_${experiment}/${agent.name}/${now:%H%M%S}_hidden_dim_${suite.hidden_dim}

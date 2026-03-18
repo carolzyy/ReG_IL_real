@@ -1,0 +1,27 @@
+# @package agent
+name: bc
+_target_: agent.regil_bc.RegBCAgent
+obs_shape: ??? # to be specified later
+action_shape: ??? # to be specified later
+device: ${device}
+lr: 5e-5
+hidden_dim: ${suite.hidden_dim}
+stddev_sch: "step_linear(0.1, 0.1,${agent.replay_warmup} , 0.1, 30000)"
+stddev_clip: 0.3
+use_tb: ${use_tb}
+obs_type: ${obs_type}
+encoder_type: ${encoder_type}
+pixel_keys: ${suite.pixel_keys}
+feature_key: ${suite.feature_key}
+train_encoder: true
+max_episode_len: ${suite.task_make_fn.max_episode_len}
+
+replay_warmup: 5000 #only retrieve agent
+pretrain_encoder: true
+add_expert: false
+
+batch_size: 64 #default for baku for libero
+
+retrieve: false
+retrieve_len: ${retrieve_len}
+re_history_len: ${re_history_len}
