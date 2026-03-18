@@ -97,7 +97,9 @@ class RobotEnv(gym.Env):
         height=224,
         width=224,
         use_robot=True,  # True when robot used
-        max_path_length = 99
+        max_path_length = 99,
+        act_max = 1,
+        act_min = -1
     ):
         super(RobotEnv, self).__init__()
         self.height = height
@@ -105,6 +107,7 @@ class RobotEnv(gym.Env):
         self.use_robot = use_robot
         self.feature_dim = 8
         self.action_dim = 4 #（dx,dy,dz,gripper)
+        self.episode_step = 0
 
         self.n_channels = 3
         self.reward = 0
@@ -113,6 +116,10 @@ class RobotEnv(gym.Env):
         self.motion_dynamics_factor = 0.10
         self.max_path_length =max_path_length
         self.robot = None
+        self.act_stat = {
+            'max':np.array(act_max),
+            'min':np.array(act_min),
+        }
 
 
         self.observation_spec = spaces.Box(
@@ -129,22 +136,42 @@ class RobotEnv(gym.Env):
             self.pipe.start(cfg)
             self.robot = Robot()
 
+    def act_preprocess(self,action):
+        act_min = self.act_stat['min']
+        act_range = self.act_stat['max'][:3] - self.act_stat['min'][:3]
+        action_xyz = 2*(action[..., :3]-act_min[:3])/(act_range+ 1e-8)-1
+        action_gripper =  np.where(action[..., 3:] > 0.5, 1.0, -1)
+        action_processed = np.concatenate([action_xyz, action_gripper], axis=-1)
+        return action_processed
+
+    def act_posprocess(self,action):
+        #act_max = self.act_stat['max']
+        act_min = self.act_stat['min']
+        act_range = self.act_stat['max'][:3] - self.act_stat['min'][:3]
+        action_xyz =  (action[..., :3] + 1.0 )* act_range/2.0 + act_min[:3]
+        action_gripper = np.where(action[..., 3:] > 0, 1.0, 0.0)
+        return np.concatenate([action_xyz, action_gripper], axis=-1)
+
+
     def step(self, action):
-        print("current step's action is: ", action)
-
-        action = np.array(action)
-        if self.robot is not None:
-            self.robot.act(action)
-        else:
-            print("no robot")
-
+        print(f"current {self.episode_step}th action is: ", action)
         obs = {}
-        obs[f"pixels"] = self.get_frame()
-
         if self.episode_step == self.max_path_length:
             done = True
         else:
             done = False
+
+        action = self.act_posprocess(action)
+        if self.robot is None:
+            print(f"no robot,excuate action is {action}")
+            obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
+        else:
+            self.robot.robot_act(action)
+            obs["pixels"] = self.get_frame()
+
+        self.episode_step += 1
+
+
 
         return obs, done #, None #obs, reward, done, info
 
@@ -160,6 +187,7 @@ class RobotEnv(gym.Env):
         return color_image
 
     def reset(self):  # currently same positions, with gripper opening
+        self.episode_step = 0
         if self.use_robot:
             print("resetting")
             self.robot.robot_reset()
@@ -167,7 +195,7 @@ class RobotEnv(gym.Env):
             obs = {}
             obs["pixels"] = self.get_frame()
 
-            return obs
+            return obs,False
         else:
             obs = {}
             #obs["features"] = np.zeros(self.feature_dim)
@@ -187,7 +215,9 @@ def make(
     width,
     max_episode_len,
     eval,
-    pixel_keys
+    pixel_keys,
+    act_max,
+    act_min
 ):
     # Convert task_names, which is a list, to a dictionary
     #tasks = tasks
@@ -195,7 +225,9 @@ def make(
                    height=height,
                    width=width,
                    use_robot=False,
-                   max_path_length=max_episode_len
+                   max_path_length=max_episode_len,
+                   act_max=act_max,
+                   act_min=act_min,
                    )
 
     return env

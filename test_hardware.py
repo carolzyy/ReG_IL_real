@@ -43,6 +43,7 @@ def test_franka():
     print("-----Testing robot connection-----------")
     from franky import *
 
+
     robot = Robot("172.16.0.2")  # Replace this with your robot's IP
 
     # Let's start slow (this lets the robot use a maximum of 5% of its velocity, acceleration, and jerk limits)
@@ -51,11 +52,60 @@ def test_franka():
     init_config = JointMotion([0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375,
                                0.785398163397])  # 0.0 > 0.001 to avoid errors
     robot.move(init_config)
+    # In franky/libfranka, RobotMode.UserStopped is typically 4
+    while True:
+        state = robot.read_once()
+
+        # Check if the Emergency Stop (User Stopped) is active
+        # In franky/libfranka, RobotMode.UserStopped is typically 4
+        if state.robot_mode == RobotMode.UserStopped:
+            print("\n[ALERT] Emergency Stop detected!")
+            break
 
     # Move the robot 20cm along the relative X-axis of its end-effector
     # motion = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
     # robot.move(motion)
     print('Back to the initial pose')
+
+
+def check_franka_interface(robot_ip):
+    print("-----Testing robot connection-----------")
+    from franky import *
+    import time
+    try:
+        # Initialize the robot
+        print(f"Connecting to robot at {robot_ip}...")
+        robot = Robot(robot_ip)
+        print("Connected! Press the buttons on the robot to test them.")
+        print("Press Ctrl+C to exit this script.")
+        print("-" * 40)
+
+        last_button_state = False
+
+        while True:
+            # 1. Check the White User Button
+            current_button_state = robot.state.user_button
+
+            if current_button_state != last_button_state:
+                status = "PRESSED" if current_button_state else "RELEASED"
+                print(f"[USER BUTTON] Status changed to: {status}")
+                last_button_state = current_button_state
+
+            # 2. Check Robot Mode (To detect E-Stop/Errors)
+            # Modes usually include: Idle, Moving, Guiding, Reflex, UserStopped
+            current_mode = robot.state.robot_mode
+
+            # If E-Stop is pressed, mode usually switches to UserStopped or Reflex
+            if "Stopped" in str(current_mode) or "Reflex" in str(current_mode):
+                print(f"[SYSTEM ALERT] Robot is in {current_mode} mode! (Check E-Stop/Safety)")
+
+            # Small sleep to prevent CPU saturation
+            time.sleep(0.01)
+
+    except KeyboardInterrupt:
+        print("\nExiting button check script.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def test_mouse_hid():
     print("-----Testing mouse data read with hid library-----------")

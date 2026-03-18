@@ -809,8 +809,7 @@ class RegAgent:
         self.retrieve_context = self.get_retrieve_act()
         return self.retrieve_context
 
-    def get_reward(self, next_timestep):
-        next_obs = next_timestep.observation
+    def get_reward(self, next_obs):
         self.retrieve_context = self.get_retrieve_act()
         norm_best_dis = self.retrieve_context['norm_best_dist']
         retrieve_action = self.retrieve_context['retrieve_action']
@@ -819,13 +818,6 @@ class RegAgent:
         reward_dict = {}
         reward_dict['norm_best_dist'] = -norm_best_dis
         reward_dict['best_dist'] = -best_dis
-
-        success = next_obs["goal_achieved"]
-        reward_dict['binary'] = float(success)
-
-        reward_dict['gt_reward'] = next_timestep.reward
-
-        reward_dict['mix'] = -norm_best_dis + self.success_scale*float(success)
         reward = reward_dict[self.reward_type]
 
         return reward,retrieve_action,reward_dict
