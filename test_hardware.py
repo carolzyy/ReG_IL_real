@@ -59,21 +59,19 @@ def test_franka():
     print(state.robot_mode)
     robot.relative_dynamics_factor = 0.05
 
-    motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
-    robot.move(motion1, asynchronous=True)
+    #motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
+    #robot.move(motion1, asynchronous=False)
 
-    time.sleep(0.5)
+    #time.sleep(0.5)
     # Note that, similar to reactions, when preempting active motions with new motions, the
     # control mode cannot change. Hence, we cannot use, e.g., a JointMotion here.
-    motion2 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
-    robot.move(motion2, asynchronous=True)
+    #motion2 = CartesianMotion(Affine([-0.2, 0.0, 0.0]), ReferenceType.Relative)
+    #robot.move(motion2, asynchronous=False)
 
     # Move the robot 20cm along the relative X-axis of its end-effector
     #motion = CartesianMotion(Affine([-0.2, 0.0, 0.0]), ReferenceType.Relative)
     #robot.move(motion)
     print('Back to the initial pose')
-
-test_franka()
 
 def check_franka_interface(robot_ip="172.16.0.2"):
     print("-----Testing robot connection-----------")
@@ -89,16 +87,16 @@ def check_franka_interface(robot_ip="172.16.0.2"):
         last_mode = False
         robot.relative_dynamics_factor = 0.05
 
-        motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
-        robot.move(motion1, asynchronous=True)
+        motion1 = CartesianMotion(Affine([0.1, 0.0, 0.0]), ReferenceType.Relative)
+        robot.move(motion1, asynchronous=False)
 
         time.sleep(0.5)
         # Note that, similar to reactions, when preempting active motions with new motions, the
         # control mode cannot change. Hence, we cannot use, e.g., a JointMotion here.
-        motion2 = CartesianMotion(Affine([-0.2, 0.0, 0.0]), ReferenceType.Relative)
-        robot.move(motion2, asynchronous=True)
+        motion2 = CartesianMotion(Affine([-0.1, 0.0, 0.0]), ReferenceType.Relative)
+        robot.move(motion2, asynchronous=False)
 
-        while False:
+        while True:
             # 1. Check the White User Button
             current_mode = robot.state.robot_mode
 
@@ -106,9 +104,9 @@ def check_franka_interface(robot_ip="172.16.0.2"):
                 print(f"[MODE] Status changed from {last_mode} to: {current_mode}")
                 last_mode = current_mode
             
-            robot.move(motion1,asynchronous=True)
+            robot.move(motion1,asynchronous=False)
             time.sleep(0.5)
-            robot.move(motion2,asynchronous=True)
+            robot.move(motion2,asynchronous=False)
 
             # If E-Stop is pressed, mode usually switches to UserStopped or Reflex
             if "Stopped" in str(current_mode) or "Reflex" in str(current_mode):
@@ -122,8 +120,10 @@ def check_franka_interface(robot_ip="172.16.0.2"):
 
             # Small sleep to prevent CPU saturation
             time.sleep(0.5)
-    except franky._franky.ControlException as e:
-            print(f'franky._franky.ControlException')
+    except ControlException as e:
+            print(f'{e}')
+
+check_franka_interface(robot_ip="172.16.0.2")
 
 def test_mouse_hid():
     print("-----Testing mouse data read with hid library-----------")
