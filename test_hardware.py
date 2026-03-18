@@ -73,6 +73,8 @@ def test_franka():
     #robot.move(motion)
     print('Back to the initial pose')
 
+test_franka()
+
 def check_franka_interface(robot_ip="172.16.0.2"):
     print("-----Testing robot connection-----------")
     import time
@@ -149,6 +151,9 @@ def check_btn_log(robot_ip="172.16.0.2"):
             print("Button released, try recovery")
 
             try:
+                success_input = input("Success or not(Y/N):")
+                success = (success_input.upper() == "Y")
+                print(f'This episode ended with {success},robot start reset')
                 robot.recover_from_errors()
                 time.sleep(0.5)
 
@@ -157,7 +162,6 @@ def check_btn_log(robot_ip="172.16.0.2"):
                 print("robot recoveried")
             except Exception as recovery_e:
                 print(f"恢复失败: {recovery_e}，将重新尝试...")
-
 
 def test_mouse_hid():
     print("-----Testing mouse data read with hid library-----------")

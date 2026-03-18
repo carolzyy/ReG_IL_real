@@ -4,8 +4,9 @@ import cv2
 from agent.retriever import get_retriever
 import hydra
 import torch
-
-from env.franka_env import Robot
+from franky import *
+from env.franka_env import Franka
+import time
 
 re_history_len = 5
 retiever = get_retriever(
@@ -17,12 +18,21 @@ retiever = get_retriever(
     retrieve_len=5,
 )
 
-path = '/home/carol/Project/4-RegIC_IL/ReG_IL_real/expert_demos/reach.npy'
+robot = Franka()
+robot.robot_reset()
+path = '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/reach.npy'
 demo = np.load(path,allow_pickle=True).item()
+action = demo['actions']
+for i in range(len(action)):
+    robot.robot_act(action[i])
+    #print(f'excute the {i}th action')
+    #time.sleep(0.05)
+
+
 retiever.init_expert(demo)
 
-#robot = Robot()
-obs = np.load('/home/carol/Project/4-RegIC_IL/ReG_IL_real/expert_demos/episode0.npy',allow_pickle=True)
+
+obs = np.load('/home/carolzhang/Project/RegIL/ReG_IL_real/recorded/episode0.npy',allow_pickle=True)
 for i in range(0,128):
     state_idx = i
     #print(f'state_idx is {i}')
