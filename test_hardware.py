@@ -1,3 +1,5 @@
+from franky import *
+import time
 def test_camera():
     print("-----Testing the hardware of RealSense-----------")
     import pyrealsense2 as rs
@@ -41,7 +43,7 @@ def test_camera():
 
 def test_franka():
     print("-----Testing robot connection-----------")
-    from franky import *
+    #from franky import *
 
 
     robot = Robot("172.16.0.2")  # Replace this with your robot's IP
@@ -53,24 +55,28 @@ def test_franka():
                                0.785398163397])  # 0.0 > 0.001 to avoid errors
     robot.move(init_config)
     # In franky/libfranka, RobotMode.UserStopped is typically 4
-    while True:
-        state = robot.read_once()
+    state = robot.state
+    print(state.robot_mode)
+    robot.relative_dynamics_factor = 0.05
 
-        # Check if the Emergency Stop (User Stopped) is active
-        # In franky/libfranka, RobotMode.UserStopped is typically 4
-        if state.robot_mode == RobotMode.UserStopped:
-            print("\n[ALERT] Emergency Stop detected!")
-            break
+    motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
+    robot.move(motion1, asynchronous=True)
+
+    time.sleep(0.5)
+    # Note that, similar to reactions, when preempting active motions with new motions, the
+    # control mode cannot change. Hence, we cannot use, e.g., a JointMotion here.
+    motion2 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
+    robot.move(motion2, asynchronous=True)
 
     # Move the robot 20cm along the relative X-axis of its end-effector
-    # motion = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
-    # robot.move(motion)
+    #motion = CartesianMotion(Affine([-0.2, 0.0, 0.0]), ReferenceType.Relative)
+    #robot.move(motion)
     print('Back to the initial pose')
 
+test_franka()
 
-def check_franka_interface(robot_ip):
+def check_franka_interface(robot_ip="172.16.0.2"):
     print("-----Testing robot connection-----------")
-    from franky import *
     import time
     try:
         # Initialize the robot
@@ -80,32 +86,44 @@ def check_franka_interface(robot_ip):
         print("Press Ctrl+C to exit this script.")
         print("-" * 40)
 
-        last_button_state = False
+        last_mode = False
+        robot.relative_dynamics_factor = 0.05
 
-        while True:
+        motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
+        robot.move(motion1, asynchronous=True)
+
+        time.sleep(0.5)
+        # Note that, similar to reactions, when preempting active motions with new motions, the
+        # control mode cannot change. Hence, we cannot use, e.g., a JointMotion here.
+        motion2 = CartesianMotion(Affine([-0.2, 0.0, 0.0]), ReferenceType.Relative)
+        robot.move(motion2, asynchronous=True)
+
+        while False:
             # 1. Check the White User Button
-            current_button_state = robot.state.user_button
-
-            if current_button_state != last_button_state:
-                status = "PRESSED" if current_button_state else "RELEASED"
-                print(f"[USER BUTTON] Status changed to: {status}")
-                last_button_state = current_button_state
-
-            # 2. Check Robot Mode (To detect E-Stop/Errors)
-            # Modes usually include: Idle, Moving, Guiding, Reflex, UserStopped
             current_mode = robot.state.robot_mode
+
+            if current_mode != last_mode:
+                print(f"[MODE] Status changed from {last_mode} to: {current_mode}")
+                last_mode = current_mode
+            
+            robot.move(motion1,asynchronous=True)
+            time.sleep(0.5)
+            robot.move(motion2,asynchronous=True)
 
             # If E-Stop is pressed, mode usually switches to UserStopped or Reflex
             if "Stopped" in str(current_mode) or "Reflex" in str(current_mode):
-                print(f"[SYSTEM ALERT] Robot is in {current_mode} mode! (Check E-Stop/Safety)")
+                print(f"[SYSTEM ALERT] Robot is in {current_mode} mode!")
+            elif "Stopped" in str(last_mode) or "Reflex" in str(last_mode):
+                print(f"[SYSTEM ALERT] Robot is recoverying")
+                robot.recover_from_errors()
+                init_config = JointMotion([0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375, 0.785398163397]) #0.0 > 0.001 to avoid errors
+                robot.move(init_config)
+
 
             # Small sleep to prevent CPU saturation
-            time.sleep(0.01)
-
-    except KeyboardInterrupt:
-        print("\nExiting button check script.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+            time.sleep(0.5)
+    except franky._franky.ControlException as e:
+            print(f'franky._franky.ControlException')
 
 def test_mouse_hid():
     print("-----Testing mouse data read with hid library-----------")
