@@ -46,12 +46,13 @@ class WorkspaceIL:
         task_idx = 0
         data_path =self.cfg.suite.data_path
         task = self.cfg.suite.task.tasks[task_idx]
-        data = np.load(f'{data_path}/{task}.npy',allow_pickle=True).item()
-        self.all_demos = data
+        raw_act_stat,max_episode_len = self.preprocess_demo(data_path,task)
 
 
         # create envs
-        self.cfg.suite.task_make_fn.max_episode_len =  len(data['actions']) + 10
+        self.cfg.suite.task_make_fn.max_episode_len = max_episode_len + 10
+        self.cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
+        self.cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
         self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
 
         # create logger
@@ -87,15 +88,35 @@ class WorkspaceIL:
     def global_frame(self):
         return self.global_step * self.cfg.suite.action_repeat
 
+    def preprocess_demo(self,data_path,task):
+        data = np.load(f'{data_path}/{task}.npy',allow_pickle=True).item()
+        action = data['actions']
+        max_episode_len = len(action)
+
+        act_stat = {
+            'max': action.max(axis=0),
+            'min': action.min(axis=0),
+        }
+        act_range = act_stat['max'][:3] - act_stat['min'][:3]
+        action_xyz = 2*(action[..., :3]-act_stat['min'][:3])/(act_range+ 1e-8)-1
+        action_gripper = np.where(action[..., 3:] > 0.5, 1.0, -1.0)
+        action_processed = np.concatenate([action_xyz, action_gripper], axis=-1)
+        self.all_demo = {
+            'observations': data['observations'],
+            'actions': action_processed,
+        }
+
+        return act_stat,max_episode_len
+
+
+
     def eval(self):
         print(f'======================Statr eval==============================')
         self.agent.train(False)
         episode_rewards_gt,episode_rewards = [],[]
-        successes = []
         ep_reward_dict = {}
         episode, total_reward_gt,total_reward = 0, 0, 0
         eval_until_episode = utils.Until(self.cfg.suite.num_eval_episodes)
-        success = []
 
         while eval_until_episode(episode):
             observation = self.env.reset()
@@ -143,11 +164,10 @@ class WorkspaceIL:
         ep_mean_reward_list = []
 
         # Initialize demonstrations for this environment
-        self.agent.init_demos(self.all_demos,skip=self.cfg.suite.demo_skip)
+        self.agent.init_demos(self.all_demo,skip=self.cfg.suite.demo_skip)
 
         # Step schedulers
         train_until_step = utils.Until(self.cfg.suite.num_train_steps, 1)
-        #log_every_episodes = utils.Every( self.cfg.suite.log_every_episodes**100, 1) #self.cfg.suite.log_every_steps
         log_every_step = utils.Every(self.cfg.suite.log_every_steps, 1)
         eval_every_step = utils.Every(self.cfg.suite.eval_every_steps, 1)
         save_every_step = utils.Every(self.cfg.suite.save_every_steps, 1)
@@ -185,8 +205,6 @@ class WorkspaceIL:
 
             self.agent.update_obs_and_retrieve(next_observation)
 
-            if self.train_video_recorder.enabled:
-                self.train_video_recorder.record(next_observation['pixels'])
 
             retrive_reward,retrieve_action,reward_dict = self.agent.get_reward(next_observation)
             episode_reward += retrive_reward
@@ -195,17 +213,12 @@ class WorkspaceIL:
             self.agent.add_buffer(observation, next_observation,done,policy_action,retrive_reward, retrieve_action)
 
 
-            metrics = self.agent.update() #self.expert_replay_iter
+            metrics = self.agent.update()
 
             self.logger.log_metrics(metrics, self.global_frame, ty="train")
 
 
             if done :
-                if self.train_video_recorder.enabled:
-                    self.train_video_recorder.save(
-                        f"train_step{self.global_step}_ep{self._global_episode}.mp4"
-                    )
-                    self.train_video_recorder.enabled = False
                 ep_mean_reward_list.append(episode_reward)
                 # reset episode
                 observation,done = self.env.reset()
@@ -214,10 +227,6 @@ class WorkspaceIL:
 
 
                 should_record = (self._global_episode % self.cfg.video_every_episode == 0)
-                if should_record and self.cfg.save_train_video:
-                    # init will set enabled=True for the recorder; make sure it's done only once
-                    self.train_video_recorder.init(observation['pixels'], enabled=True)
-
                 episode_reward = 0
 
                 episode_step = 0
