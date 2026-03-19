@@ -511,9 +511,6 @@ class RegAgent:
             self.observation_buffer = {}
             for key in self.pixel_keys:
                 self.observation_buffer[key] = deque(maxlen=self.re_history_len)
-        else:
-            self.observation_buffer = deque(maxlen=self.re_history_len)
-
 
         if obs is not None:
             for key in self.pixel_keys:
@@ -536,14 +533,17 @@ class RegAgent:
 
 
 
-    def act(self, obs,prompt=None,norm_stats=None, step=None, expl_noise=None, eval_mode=False):
+    def act(self, obs,retrieve_only=False, eval_mode=False):
         """
         Selects an action using a Q-filter for both evaluation and training,
         optimized with torch.no_grad() for performance.
         """
         # 1. Pre-processing
         obs_tensor = utils.to_torch(obs, device=self.device)
-        retrieve = False
+        if retrieve_only:
+            action = self.retrieve_context['retrieve_action']
+            return action
+
         if (self.update_cnt < self.replay_warmup) and (not eval_mode):
             if getattr(self, 'retrieve', False):
                 action = self.retrieve_context['retrieve_action']
@@ -907,9 +907,16 @@ class RegAgent:
 
         return context,best_dist,retrieve_state_idx_s,retrieve_state_idx_end,path_len
 
-    def add_buffer(self,observation, next_observation,done,policy_action,retrive_reward, retrieve_action):
+    def add_buffer(self,observation,
+                   next_observation,
+                   done,
+                   policy_action,
+                   retrive_reward,
+                   retrieve_action,
+                   success=False):
         obs = observation.copy()
         next_obs = next_observation.copy()
+        next_obs["goal_achieved"] = success
         reward =retrive_reward
 
         act_dict={

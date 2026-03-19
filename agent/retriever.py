@@ -255,12 +255,12 @@ path = '/home/carol/Project/4-RegIC_IL/ReG_IL_real/data/data_reach.npy'
 demo = np.load(path,allow_pickle=True).item()
 retiever.init_expert(demo)
 
-
-obs = np.load('/home/carol/Project/4-RegIC_IL/ReG_IL_real/data/episode0.npy',allow_pickle=True)
-for i in range(10,128):
+obs = np.load('/home/carolzhang/Project/RegIL/ReG_IL_real/recorded/episode0.npy',allow_pickle=True)
+for i in range(0,128):
     state_idx = i
     #print(f'state_idx is {i}')
-    ob_history = obs[state_idx - re_history_len: state_idx+1] # dict{'dino','clip'}
+    start_idx_start = max(state_idx - re_history_len, 0)
+    ob_history = obs[start_idx_start: state_idx+1] # dict{'dino','clip'}
     current_traj = []
     for state_img in ob_history:
         current_traj.append(retiever.state_encode(state_img['image']))
@@ -271,5 +271,9 @@ for i in range(10,128):
                         state_subset,
                         #retiever.exp_traj
     )
-    print(f'Demo {i}th state_idx : retrieve_state_idx_s is {retrieve_state_idx_end}')
+    end_idx = min(retrieve_state_idx_end + retiever.retrieve_len, len(retiever.exp_traj['actions']))
+    retrieved_act = retiever.exp_traj['actions'][retrieve_state_idx_end:end_idx][0]
+
+    print(f'Demo {i}th state_idx : retrieve_idx {retrieve_state_idx_end}, action is {retrieved_act}')
+    
 '''

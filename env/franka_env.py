@@ -19,13 +19,13 @@ def get_quaternion_orientation(cartesian):
     quat = r.as_quat()
     return np.concatenate([pos, quat], axis=-1)
 
-class Robot():
+class Franka():
     def __init__(
         self,
         action_dim = 4,
         use_mouse=False,
     ):
-        super(Robot, self).__init__()
+        super(Franka, self).__init__()
         self.action_dim = action_dim #（dx,dy,dz,gripper)
 
         self.n_channels = 3
@@ -55,9 +55,11 @@ class Robot():
         )
 
     def robot_reset(self):
+        print('Robot start reset.......')
         self.robot.recover_from_errors()
         self.robot.move(self.init_config)
         self.gripper_open()
+        print('Robot ready!!!!')
 
 
     def robot_act(self,action):
@@ -114,6 +116,7 @@ class RobotEnv(gym.Env):
             'max':np.array(act_max),
             'min':np.array(act_min),
         }
+        self.input_action = None
 
 
         self.observation_spec = spaces.Box(
@@ -128,7 +131,7 @@ class RobotEnv(gym.Env):
             cfg = rs.config()
             cfg.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)  # set resolution and FPS here
             self.pipe.start(cfg)
-            self.robot = Robot()
+            self.robot = Franka()
 
     def act_preprocess(self,action):
         act_min = self.act_stat['min']
@@ -155,6 +158,8 @@ class RobotEnv(gym.Env):
         else:
             done = False
 
+        self.input_action = action.copy()
+
         action = self.act_posprocess(action)
         if self.robot is None:
             print(f"no robot,excuate action is {action}")
@@ -165,9 +170,12 @@ class RobotEnv(gym.Env):
 
         self.episode_step += 1
 
-
-
         return obs, done #, None #obs, reward, done, info
+
+    def get_done(self):
+        mode = self.robot.state.robot_mode
+        done = "Stopped" in str(mode) or "Reflex" in str(mode)
+        return done,mode
 
     def get_frame(self):
         frame = self.pipe.wait_for_frames()
