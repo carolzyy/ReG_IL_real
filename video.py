@@ -18,7 +18,7 @@ class VideoRecorder:
 
     def init(self, obs, enabled=True):
         self.frames = []
-        self.enabled = self.save_dir is not None and enabled
+        self.enabled = enabled
         self.record(obs)
 
     def record(self, obs):

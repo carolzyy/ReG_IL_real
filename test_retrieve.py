@@ -9,14 +9,18 @@ from env.franka_env import Franka,RobotEnv
 import time
 from collections import deque
 
-def test_act_freq(path= '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/reach.npy'):
+def test_act_freq(path='/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/reach.npy'):
     robot = Franka()
     robot.robot_reset()
     demo = np.load(path,allow_pickle=True).item()
     action = demo['actions']
-    act_freq = 2
-    for i in range(len(action)/act_freq):
-        robot.robot_act(action[i*act_freq])
+    print(f'The demo is {len(action)}')
+    act_freq = 1
+    path_len = int(len(action))
+    for i in range(path_len):
+        robot.robot_act(action[i])
+        time.sleep(0.1)
+    print('finish the repaly')
 
 def test_retriever(path= '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/reach.npy'):
     demo = np.load(path,allow_pickle=True).item()
@@ -30,15 +34,15 @@ def test_retriever(path= '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demo
         retrieve_len=5,
     )
     retiever.init_expert(demo)
+    print("=" * 40)
+    print(f"Load demo from: {path.split('/')[-1]}")
+    print("=" * 40)
     env = RobotEnv()
     obs_que = deque(maxlen=re_history_len)
     obs,done = env.reset()
     obs_que.append(obs)
     while True:
         try:
-            print("=" * 40)
-            print(f"Load demo from: {path.split('/')[-1]}")
-            print("=" * 40)
             retrieved_act = get_retrieve_act(obs_que,retiever)
             next_obs,done = env.step(retrieved_act)
             obs_que.append(next_obs)
@@ -62,7 +66,7 @@ def test_retriever(path= '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demo
 def get_retrieve_act(ob_history,retiever):
     current_traj = []
     for state_img in ob_history:
-        current_traj.append(retiever.state_encode(state_img['image']))
+        current_traj.append(retiever.state_encode(state_img["pixels"]))
 
     state_subset = retiever.get_state_subset_from_task(current_traj)
     retrieve_state_idx_s, retrieve_state_idx_end, best_dist, path_len = retiever.get_traj_index_from_subset_traj(
@@ -79,16 +83,18 @@ def main(cfg):
     from train_robot import WorkspaceIL as W
     from train_robot import make_agent
     #1. test action frequency
-    test_act_freq()
+    #test_act_freq()
+
 
     #2. test retrieve
-    test_retriever()
+    #test_retriever()
 
     #3.test work space
+
     task_idx = 0
     data_path = cfg.suite.data_path
     task = cfg.suite.task.tasks[task_idx]
-    raw_act_stat, max_episode_len,all_demo = W.preprocess_demo(data_path, task)
+    raw_act_stat, max_episode_len,all_demo = W.preprocess_demo(W,data_path, task)
 
     # create envs
     cfg.suite.task_make_fn.max_episode_len = max_episode_len + 10
@@ -103,10 +109,14 @@ def main(cfg):
     observation, done = env.reset()
     agent.buffer_reset(observation)
     with torch.no_grad():
-        policy_action = agent.act(obs=observation.copy(),
+        policy_action = agent.act(
+                                  obs=observation.copy(),
                                   retrieve_only=True
                                        )
         next_obs, done = env.step(policy_action)
         agent.update_obs_and_retrieve(next_obs)
         retrive_reward, retrieve_action, reward_dict = agent.get_reward(next_obs)
         agent.add_buffer(observation, next_obs, done, policy_action, retrive_reward, retrieve_action)
+
+
+main()

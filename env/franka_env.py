@@ -1,5 +1,5 @@
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 import cv2
 import numpy as np
 
@@ -30,7 +30,8 @@ class Franka():
 
         self.n_channels = 3
         self.recording_frequency = 30
-        self.gripper_open = True
+        self.gripper_open_status = True
+        self.motion_dynamics_factor = 0.05
         if use_mouse:
             from utils.robot_utils import manual_open_mouse
             self.mouse = manual_open_mouse()
@@ -47,7 +48,7 @@ class Franka():
         self.gripper_speed = 0.05  # [m/s]
         self.gripper_force = 20.0  # [N]
         self.gripper_width = 0.06  # [m]
-        gripper.move_async(self.gripper_width, self.gripper_speed)
+        #gripper.move_async(self.gripper_width, self.gripper_speed)
         self.gripper = gripper
         self.init_config = JointMotion(
             [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001,
@@ -69,22 +70,29 @@ class Franka():
         motion = CartesianMotion(EE_delta, ReferenceType.Relative,
                                  relative_dynamics_factor=self.motion_dynamics_factor)
         self.robot.move(motion, asynchronous=True)  # async = interupts motion with next command when it arrives
-        if gripper_act < 0:
+        if (gripper_act < 0.5) and self.gripper_open_status:
             self.gripper_close()
-        else:
+        elif (gripper_act > 0.5) and (not self.gripper_open_status):
             self.gripper_open()
 
 
     def gripper_close(self):
-        self.gripper.grasp_async(0.0,
+        self.gripper.move_async(0.0,
                                  self.gripper_speed,
-                                 self.gripper_force, epsilon_outer=1.0)
+                                 self.gripper_force,
+                                 epsilon_outer=1.0)
+        self.gripper_open_status = False
 
     def gripper_open(self):
-        self.gripper.grasp_async(
-                                 self.gripper_width,
-                                 self.gripper_speed,
+        self.gripper.move_async(
+                                 width = self.gripper_width,
+                                 speed = self.gripper_speed,
                                  )
+        self.gripper_open_status = True
+    
+    @property
+    def robot_mode(self):
+        return self.robot.state.robot_mode
 
 
 class RobotEnv(gym.Env):
@@ -94,8 +102,8 @@ class RobotEnv(gym.Env):
         width=224,
         use_robot=True,  # True when robot used
         max_path_length = 99,
-        act_max = 1,
-        act_min = -1
+        act_max = [1,1,1],
+        act_min = [0,0,0]
     ):
         super(RobotEnv, self).__init__()
         self.height = height
@@ -151,9 +159,10 @@ class RobotEnv(gym.Env):
 
 
     def step(self, action):
-        print(f"current {self.episode_step}th action is: ", action)
+        #print(f"current {self.episode_step}th action is: ", action)
         obs = {}
         if self.episode_step == self.max_path_length:
+            print(f"current step {self.episode_step} meet the max{self.max_path_length} ")
             done = True
         else:
             done = False
@@ -167,14 +176,21 @@ class RobotEnv(gym.Env):
         else:
             self.robot.robot_act(action)
             obs["pixels"] = self.get_frame()
+            save_path = f'/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/step_{self.episode_step}.png'
+            cv2.imwrite(save_path, cv2.cvtColor(obs["pixels"], cv2.COLOR_RGB2BGR))
+        #print(f'Excuated action is {action}')
 
         self.episode_step += 1
 
         return obs, done #, None #obs, reward, done, info
 
     def get_done(self):
-        mode = self.robot.state.robot_mode
+        mode = self.robot.robot_mode
         done = "Stopped" in str(mode) or "Reflex" in str(mode)
+        if "Reflex" in str(mode):
+            terminted = input('the robot collision,press the button:')
+            self.robot.robot.recover_from_errors()
+
         return done,mode
 
     def get_frame(self):
@@ -183,6 +199,7 @@ class RobotEnv(gym.Env):
         color_image = np.asanyarray(color_frame.get_data())
         x_center = int(np.size(color_image, 1) / 2)
         color_image = color_image[:, x_center - 240:x_center + 240] #480,480
+        color_image = cv2.resize(color_image, (self.width, self.height), interpolation=cv2.INTER_AREA)
         # cv2 imshow uses bgr channel ordering, but if your model was trained on rgb you would need to switch channel order here
         color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
 
@@ -226,7 +243,7 @@ def make(
     env = RobotEnv(
                    height=height,
                    width=width,
-                   use_robot=False,
+                   use_robot=True,
                    max_path_length=max_episode_len,
                    act_max=act_max,
                    act_min=act_min,

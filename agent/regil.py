@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 import copy
-
+import cv2
 import utils.net_utils as utils
 from agent.networks.rgb_modules import BaseEncoder, ResnetEncoder
 
@@ -128,7 +128,9 @@ class ReplayBuffer:
             exp_i = self.expert_ptr
 
             # copy observations
-            self.exp_obs['pixels'][exp_i] = traj['observations']['pixels'][idx] #.transpose(2, 0, 1)
+            image = traj['observations']['pixels'][idx]
+            resize_img = cv2.resize(image, (128, 128), interpolation=cv2.INTER_AREA)
+            self.exp_obs['pixels'][exp_i] = resize_img #traj['observations']['pixels'][idx]
 
             # copy actions
             self.exp_actions['policy'][exp_i] = traj['actions'][idx]

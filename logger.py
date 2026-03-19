@@ -167,15 +167,11 @@ class Logger(object):
             )
 
 
-    def _try_sw_log(self, key, value, step):
-        if self._sw is not None:
-            self._sw.add_scalar(key, value, step)
 
     def log(self, key, value, step):
         assert key.startswith("train") or key.startswith("eval")
         if type(value) == torch.Tensor:
             value = value.item()
-        self._try_sw_log(key, value, step)
         mg = self._train_mg if key.startswith("train") else self._eval_mg
         mg.log(key, value)
 

@@ -109,6 +109,7 @@ if mouse:
             color_image = np.asanyarray(color_frame.get_data())
             x_center = int(np.size(color_image,1)/2)
             color_image = color_image[:, x_center-240:x_center+240]
+            resize_img = cv2.resize(image, (128, 128), interpolation=cv2.INTER_AREA)
             q.put(color_image)
             step = {}
             step["robot_state"] = robot.state #save full state instead of just O_T_EE, because size is neglible compared to image data

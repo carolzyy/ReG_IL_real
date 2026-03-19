@@ -119,13 +119,13 @@ class WorkspaceIL:
         eval_until_episode = utils.Until(self.cfg.suite.num_eval_episodes)
 
         while eval_until_episode(episode):
-            observation = self.env.reset()
+            observation,done = self.env.reset()
             self.agent.buffer_reset(observation)
             step = 0
 
 
             if episode == 0:
-                self.video_recorder.init(self.env, enabled=True)
+                self.video_recorder.init(observation['pixels'], enabled=True)
 
             # plot obs with cv2
             while not done :
@@ -133,11 +133,10 @@ class WorkspaceIL:
                 with torch.no_grad(), utils.eval_mode(self.agent):
                     action = self.agent.act(
                         observation,
-                        step=step,
-                        eval_mode=True,
+                        retrieve_only=True,
                     )
                 next_observation, done = self.env.step(action.squeeze())
-                self.video_recorder.record(self.env)
+                self.video_recorder.record(next_observation['pixels'])
                 retrive_reward, retrieve_action,reward_dict = self.agent.get_reward(next_observation)
                 if retrive_reward is not None:
                     total_reward = total_reward + retrive_reward
@@ -177,9 +176,14 @@ class WorkspaceIL:
         self.agent.buffer_reset(observation)
         episode_reward = 0
         ep_reward_dict = {}
+        self.video_recorder.init(observation['pixels'], enabled=True)
 
         while train_until_step(self.global_step):
             try:
+                if self.global_episode == 0:
+                    
+                    self.video_recorder.record(observation['pixels'])
+
                 if (
                     self.cfg.eval
                     and eval_every_step(self.global_step)
@@ -194,6 +198,7 @@ class WorkspaceIL:
                 with torch.no_grad():
                     policy_action = self.agent.act(
                         obs = observation.copy(),
+                        retrieve_only=True
 
                                             )
 
@@ -206,7 +211,7 @@ class WorkspaceIL:
                     ep_reward_dict[name] = ep_reward_dict.get(name,0) + reward_dict[name]
                 success = False
                 if done:
-                    success_input = input("Success or not(Y/N):")
+                    success_input = input("Achive the max length, Success or not(Y/N):")
                     success = (success_input.upper() == "Y")
 
                 self.agent.add_buffer(observation, next_observation,done,policy_action,retrive_reward, retrieve_action,success=success)
@@ -215,6 +220,8 @@ class WorkspaceIL:
 
 
                 if done :
+                    self.video_recorder.save(f"train_{self.global_step}.mp4")
+                    print(f'save the video to train_{self.global_step}.mp4')
                     ep_mean_reward_list.append(episode_reward)
                     # reset episode
                     observation,done = self.env.reset()
@@ -222,6 +229,7 @@ class WorkspaceIL:
                     episode_reward = 0
                     ep_reward_dict = {}
                     self._global_episode = self._global_episode + 1
+                    break
 
                 else:
                     observation = next_observation

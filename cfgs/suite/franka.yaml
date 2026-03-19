@@ -41,8 +41,8 @@ task_make_fn:
   frame_stack: ${suite.frame_stack}
   action_repeat: ${suite.action_repeat}
   seed: ${seed}
-  height: 480
-  width: 480
+  height: 128
+  width: 128
   max_episode_len: ??? # to be specified later
   pixel_keys: ${suite.pixel_keys}
   eval: ${eval} # eval true mean use robot

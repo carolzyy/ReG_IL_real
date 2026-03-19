@@ -20,7 +20,7 @@ def data_process(path='',retrieve_key='DINO'):
 
 
     for idx in range(len(demo)-1):
-        image = demo[idx]['image']
+        image = demo[idx]['image'] # resize to 128,128 for the buffer size
         pixel_traj.append(image)
         retrieve_feature = {}
         if encoder is not None:

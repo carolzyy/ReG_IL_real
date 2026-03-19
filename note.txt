@@ -8,3 +8,8 @@ demo need to be saved since the bc and baku need it
 
 action should be [-1,1]
 gripper【-1】 for drawer_open, {0,0.8} for hammer
+
+
+command on the franka desktop
+source /home/carolzhang/miniconda3/bin/activate
+conda activate franka

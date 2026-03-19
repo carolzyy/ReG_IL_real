@@ -4,7 +4,7 @@ defaults:
   - agent: regil_${suite} #regil_meta regil_libero baku #
 
 # Root Dir
-root_dir: /home/carol/Project/4-RegIC_IL/ReG_IL_real
+root_dir: /home/carolzhang/Project/RegIL/ReG_IL_real/
 
 # misc
 seed: 8
