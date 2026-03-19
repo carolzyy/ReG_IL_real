@@ -5,50 +5,108 @@ from agent.retriever import get_retriever
 import hydra
 import torch
 from franky import *
-from env.franka_env import Franka
+from env.franka_env import Franka,RobotEnv
 import time
+from collections import deque
 
-re_history_len = 5
-retiever = get_retriever(
-    retrieve_key='DINO',
-    state_num=5,
-    metric='l2',
-    traj_metric='sdtw',  # 'ot','sdtw'
-    re_history_len=5,
-    retrieve_len=5,
-)
+def test_act_freq(path= '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/reach.npy'):
+    robot = Franka()
+    robot.robot_reset()
+    demo = np.load(path,allow_pickle=True).item()
+    action = demo['actions']
+    act_freq = 2
+    for i in range(len(action)/act_freq):
+        robot.robot_act(action[i*act_freq])
 
-robot = Franka()
-robot.robot_reset()
-path = '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/reach.npy'
-demo = np.load(path,allow_pickle=True).item()
-action = demo['actions']
-for i in range(len(action)):
-    robot.robot_act(action[i])
-    #print(f'excute the {i}th action')
-    #time.sleep(0.05)
+def test_retriever(path= '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/reach.npy'):
+    demo = np.load(path,allow_pickle=True).item()
+    re_history_len = 5
+    retiever = get_retriever(
+        retrieve_key='DINO',
+        state_num=5,
+        metric='l2',
+        traj_metric='sdtw',  # 'ot','sdtw'
+        re_history_len=5,
+        retrieve_len=5,
+    )
+    retiever.init_expert(demo)
+    env = RobotEnv()
+    obs_que = deque(maxlen=re_history_len)
+    obs,done = env.reset()
+    obs_que.append(obs)
+    while True:
+        try:
+            print("=" * 40)
+            print(f"Load demo from: {path.split('/')[-1]}")
+            print("=" * 40)
+            retrieved_act = get_retrieve_act(obs_que,retiever)
+            next_obs,done = env.step(retrieved_act)
+            obs_que.append(next_obs)
+        except ControlException as e:
+            print(f"Button Pressed, error detected: {e}")
+            done = True
+            while done:
+                done,_ = env.get_done()
+                time.sleep(0.2)
+
+            success_input = input("Success or not(Y/N):")
+            success = (success_input.upper() == "Y")
+            print(f'This episode ended with {success},robot start reset')
+            obs_que = deque(maxlen=re_history_len)
+            time.sleep(0.5)
+            obs, done = env.reset()
+            obs_que.append(obs)
 
 
-retiever.init_expert(demo)
 
-
-obs = np.load('/home/carolzhang/Project/RegIL/ReG_IL_real/recorded/episode0.npy',allow_pickle=True)
-for i in range(0,128):
-    state_idx = i
-    #print(f'state_idx is {i}')
-    start_idx_start = max(state_idx - re_history_len, 0)
-    ob_history = obs[start_idx_start: state_idx+1] # dict{'dino','clip'}
+def get_retrieve_act(ob_history,retiever):
     current_traj = []
     for state_img in ob_history:
         current_traj.append(retiever.state_encode(state_img['image']))
 
-    state_subset = retiever.get_state_subset_from_task(current_traj,demo)
-    retrieve_state_idx_s,retrieve_state_idx_end,best_dist,path_len = retiever.get_traj_index_from_subset_traj(
-                        current_traj,
-                        state_subset,
-                        #retiever.exp_traj
+    state_subset = retiever.get_state_subset_from_task(current_traj)
+    retrieve_state_idx_s, retrieve_state_idx_end, best_dist, path_len = retiever.get_traj_index_from_subset_traj(
+        current_traj,
+        state_subset,
     )
     end_idx = min(retrieve_state_idx_end + retiever.retrieve_len, len(retiever.exp_traj['actions']))
     retrieved_act = retiever.exp_traj['actions'][retrieve_state_idx_end:end_idx][0]
 
-    print(f'Demo {i}th state_idx : retrieve_idx {retrieve_state_idx_end}, action is {retrieved_act}')
+    return retrieved_act
+
+@hydra.main(config_path="cfgs", config_name="config")
+def main(cfg):
+    from train_robot import WorkspaceIL as W
+    from train_robot import make_agent
+    #1. test action frequency
+    test_act_freq()
+
+    #2. test retrieve
+    test_retriever()
+
+    #3.test work space
+    task_idx = 0
+    data_path = cfg.suite.data_path
+    task = cfg.suite.task.tasks[task_idx]
+    raw_act_stat, max_episode_len,all_demo = W.preprocess_demo(data_path, task)
+
+    # create envs
+    cfg.suite.task_make_fn.max_episode_len = max_episode_len + 10
+    cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
+    cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
+    env = hydra.utils.call(cfg.suite.task_make_fn)
+    agent = make_agent(
+        env.observation_spec, env.action_spec, cfg
+    )
+
+    agent.init_demos(all_demo, skip=cfg.suite.demo_skip)
+    observation, done = env.reset()
+    agent.buffer_reset(observation)
+    with torch.no_grad():
+        policy_action = agent.act(obs=observation.copy(),
+                                  retrieve_only=True
+                                       )
+        next_obs, done = env.step(policy_action)
+        agent.update_obs_and_retrieve(next_obs)
+        retrive_reward, retrieve_action, reward_dict = agent.get_reward(next_obs)
+        agent.add_buffer(observation, next_obs, done, policy_action, retrive_reward, retrieve_action)

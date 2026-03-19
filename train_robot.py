@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import warnings
-import os
+import time
 from pathlib import Path
-
+from franky import *
 import hydra
 import torch
 import random
@@ -46,7 +46,7 @@ class WorkspaceIL:
         task_idx = 0
         data_path =self.cfg.suite.data_path
         task = self.cfg.suite.task.tasks[task_idx]
-        raw_act_stat,max_episode_len = self.preprocess_demo(data_path,task)
+        raw_act_stat,max_episode_len,_ = self.preprocess_demo(data_path,task)
 
 
         # create envs
@@ -106,12 +106,12 @@ class WorkspaceIL:
             'actions': action_processed,
         }
 
-        return act_stat,max_episode_len
+        return act_stat,max_episode_len,self.all_demo
 
 
 
     def eval(self):
-        print(f'======================Statr eval==============================')
+        print(f'======================Start eval==============================')
         self.agent.train(False)
         episode_rewards_gt,episode_rewards = [],[]
         ep_reward_dict = {}
@@ -175,87 +175,103 @@ class WorkspaceIL:
 
         observation,done = self.env.reset()
         self.agent.buffer_reset(observation)
-
-        episode_step = 0
         episode_reward = 0
         ep_reward_dict = {}
 
-
         while train_until_step(self.global_step):
-            if (self.global_episode % self.cfg.video_every_episode == 0) and not (self.train_video_recorder.enabled):
-                self.train_video_recorder.init(observation['pixels'], enabled=True)
-            if (
-                self.cfg.eval
-                and eval_every_step(self.global_step)
-                and self.global_step > 0
-            ):
-                self.logger.log(
-                    "eval_total_time", self.timer.total_time(), self.global_frame
-                )
-                self.eval()
-                observation,done = self.env.reset()
-                self.agent.buffer_reset(observation)
-            with torch.no_grad():
-                policy_action = self.agent.act(obs = observation.copy(),
-                                        step = episode_step,
-                                        expl_noise = 0.1,
-                                        )
+            try:
+                if (
+                    self.cfg.eval
+                    and eval_every_step(self.global_step)
+                    and self.global_step > 0
+                ):
+                    self.logger.log(
+                        "eval_total_time", self.timer.total_time(), self.global_frame
+                    )
+                    self.eval()
+                    observation,done = self.env.reset()
+                    self.agent.buffer_reset(observation)
+                with torch.no_grad():
+                    policy_action = self.agent.act(
+                        obs = observation.copy(),
 
-            next_observation,done = self.env.step(policy_action)
+                                            )
 
-            self.agent.update_obs_and_retrieve(next_observation)
+                next_observation,done = self.env.step(policy_action)
 
+                self.agent.update_obs_and_retrieve(next_observation)
+                retrive_reward,retrieve_action,reward_dict = self.agent.get_reward(next_observation)
+                episode_reward += retrive_reward
+                for name in reward_dict.keys():
+                    ep_reward_dict[name] = ep_reward_dict.get(name,0) + reward_dict[name]
+                success = False
+                if done:
+                    success_input = input("Success or not(Y/N):")
+                    success = (success_input.upper() == "Y")
 
-            retrive_reward,retrieve_action,reward_dict = self.agent.get_reward(next_observation)
-            episode_reward += retrive_reward
-            for name in reward_dict.keys():
-                ep_reward_dict[name] = ep_reward_dict.get(name,0) + reward_dict[name]
-            self.agent.add_buffer(observation, next_observation,done,policy_action,retrive_reward, retrieve_action)
-
-
-            metrics = self.agent.update()
-
-            self.logger.log_metrics(metrics, self.global_frame, ty="train")
-
-
-            if done :
-                ep_mean_reward_list.append(episode_reward)
-                # reset episode
-                observation,done = self.env.reset()
-                self.agent.buffer_reset(observation)
+                self.agent.add_buffer(observation, next_observation,done,policy_action,retrive_reward, retrieve_action,success=success)
+                metrics = self.agent.update()
+                self.logger.log_metrics(metrics, self.global_frame, ty="train")
 
 
-
-                should_record = (self._global_episode % self.cfg.video_every_episode == 0)
-                episode_reward = 0
-
-                episode_step = 0
-                self._global_episode = self._global_episode + 1
-
-            else:
-                observation = next_observation
-                episode_step += 1
-
-            # log
-            if log_every_step(self.global_step+1):
-                elapsed_time, total_time = self.timer.reset()
-                with self.logger.log_and_dump_ctx(self.global_frame, ty="train") as log:
-                    log("total_time", total_time)
-                    log("step", self.global_step)
-                    log("reward", np.mean(ep_mean_reward_list) ) #.sum() / len(ep_mean_reward_list))
-                    for name in metrics.keys():
-                        log(name, metrics[name])
-
-                    for name in ep_reward_dict.keys():
-                        log(name, ep_reward_dict[name]/( len(ep_mean_reward_list)+1e-6))
-                    ep_mean_reward_list = []
+                if done :
+                    ep_mean_reward_list.append(episode_reward)
+                    # reset episode
+                    observation,done = self.env.reset()
+                    self.agent.buffer_reset(observation)
+                    episode_reward = 0
                     ep_reward_dict = {}
+                    self._global_episode = self._global_episode + 1
+
+                else:
+                    observation = next_observation
+
+                # log
+                if log_every_step(self.global_step+1):
+                    elapsed_time, total_time = self.timer.reset()
+                    with self.logger.log_and_dump_ctx(self.global_frame, ty="train") as log:
+                        log("total_time", total_time)
+                        log("step", self.global_step)
+                        log("reward", np.mean(ep_mean_reward_list) ) #.sum() / len(ep_mean_reward_list))
+                        for name in metrics.keys():
+                            log(name, metrics[name])
+
+                        for name in ep_reward_dict.keys():
+                            log(name, ep_reward_dict[name]/( len(ep_mean_reward_list)+1e-6))
+                        ep_mean_reward_list = []
+                        ep_reward_dict = {}
 
 
-            # save snapshot
-            if save_every_step(self.global_step):
-                self.save_snapshot()
-            self._global_step += 1
+                # save snapshot
+                if save_every_step(self.global_step):
+                    self.save_snapshot()
+                self._global_step += 1
+
+            except ControlException as e:
+                print(f"Button Pressed, error detected: {e}")
+                is_button = True
+
+                while is_button:
+                    is_button, _ = self.env.get_done()
+                    time.sleep(0.2)
+
+                success_input = input("Success or not(Y/N):")
+                success = (success_input.upper() == "Y")
+                observation = next_observation
+                next_observation = self.env.get_frame()
+                self.agent.update_obs_and_retrieve(next_observation)
+                retrive_reward, retrieve_action, reward_dict = self.agent.get_reward(next_observation)
+                done = True
+                self.agent.add_buffer(observation, next_observation, done, self.env.input_action, retrive_reward,
+                                      retrieve_action,success=success)
+
+                print(f'This episode ended with {success},robot start reset')
+                time.sleep(0.5)
+                observation, done = self.env.reset()
+                self.agent.buffer_reset(observation)
+                episode_reward = 0
+                ep_reward_dict = {}
+                self._global_episode += 1
 
 
     def save_snapshot(self):

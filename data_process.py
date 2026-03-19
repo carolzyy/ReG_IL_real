@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from encoders import get_encoders
+from utils.encoders import get_encoders
 from pathlib import Path
 from scipy.spatial.transform import Rotation
 
@@ -29,6 +29,7 @@ def data_process(path='',retrieve_key='DINO'):
             feature_traj.append(retrieve_feature)
         gripper = demo[idx]['gripper_command']
         delta_p = get_action_matrix(demo[idx]['robot_state'], demo[idx+1]['robot_state'])
+
         action = np.append(delta_p, gripper) #dx,dy,dz,gripper
         act_traj.append(action)
 
@@ -58,42 +59,9 @@ def get_action_matrix(state1,state2):
     #combined_action[6] = current_state["gripper_command"]
     return delta_p
 
-
-def get_action(state1,state2):
-    ee_relative_p1 = state1.O_T_EE.translation
-    ee_relative_quat1 = state1.O_T_EE.quaternion
-    ee_relative_p2 = state2.O_T_EE.translation
-    ee_relative_quat2 = state2.O_T_EE.quaternion
-    delta_p = ee_relative_p1 - ee_relative_p2
-    delta_quat = get_delta_q(ee_relative_quat1,ee_relative_quat2)
-    return delta_p,delta_quat
-
-def wxyz_to_xyzw(q):
-    return np.array([q[1], q[2], q[3], q[0]])
-
-def get_delta_q(q1,q2,wxyz=True):
-    if wxyz:
-        q1 = wxyz_to_xyzw(q1)
-        q2 = wxyz_to_xyzw(q2)
-
-    # 2. Load into SciPy
-    r1 = Rotation.from_quat(q1)
-    r2 = Rotation.from_quat(q2)
-
-    # 3. Calculate relative rotation: r_rel = r2 * r1_inv
-    # In SciPy, the * operator performs composition: r_total = r_second * r_first
-    r_rel = r2 * r1.inv()
-
-    rel_quat_xyzw = r_rel.as_quat()
-
-    if wxyz:
-        rel_quat_wxyz = np.array([rel_quat_xyzw[3], rel_quat_xyzw[0], rel_quat_xyzw[1], rel_quat_xyzw[2]])
-
-    return r_rel,rel_quat_wxyz
-
 def save_dataset(folder_path):
     base_dir = Path(folder_path)
-    for file_path in base_dir.glob('episode*.npy'):
+    for file_path in base_dir.glob('episode1.npy'):
         print(f"Processing: {file_path.name}")
         processed_data = data_process(file_path)
         new_filename = f"data_{file_path.name}"
@@ -103,4 +71,4 @@ def save_dataset(folder_path):
         np.save(save_path, processed_data)
         print(f"Saved to: {save_path}")
 
-save_dataset('/home/carol/Project/4-RegIC_IL/ReG_IL_real/data')
+save_dataset('/home/carol/Project/4-RegIC_IL/ReG_IL_real/expert_demos')
