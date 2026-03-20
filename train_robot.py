@@ -50,7 +50,7 @@ class WorkspaceIL:
 
 
         # create envs
-        self.cfg.suite.task_make_fn.max_episode_len = max_episode_len + 10
+        self.cfg.suite.task_make_fn.max_episode_len =1000
         self.cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
         self.cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
         self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
@@ -182,7 +182,7 @@ class WorkspaceIL:
             try:
                 if self.global_episode == 0:
                     
-                    self.video_recorder.record(observation['pixels'])
+                    self.video_recorder.record(observation['pixels'].copy())
 
                 if (
                     self.cfg.eval
@@ -205,6 +205,8 @@ class WorkspaceIL:
                 next_observation,done = self.env.step(policy_action)
 
                 self.agent.update_obs_and_retrieve(next_observation)
+                self.video_recorder.record(next_observation['pixels'].copy())
+
                 retrive_reward,retrieve_action,reward_dict = self.agent.get_reward(next_observation)
                 episode_reward += retrive_reward
                 for name in reward_dict.keys():

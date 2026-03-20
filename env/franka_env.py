@@ -63,13 +63,13 @@ class Franka():
         print('Robot ready!!!!')
 
 
-    def robot_act(self,action):
+    def robot_act(self,action,asynchronous=True):
         EE_delta = Affine(action[0:3])
         gripper_act = action[-1]
         # A linear motion in Cartesian space relative to the initial position
         motion = CartesianMotion(EE_delta, ReferenceType.Relative,
                                  relative_dynamics_factor=self.motion_dynamics_factor)
-        self.robot.move(motion, asynchronous=True)  # async = interupts motion with next command when it arrives
+        self.robot.move(motion, asynchronous=asynchronous)  # async = interupts motion with next command when it arrives
         if (gripper_act < 0.5) and self.gripper_open_status:
             self.gripper_close()
         elif (gripper_act > 0.5) and (not self.gripper_open_status):
@@ -174,10 +174,11 @@ class RobotEnv(gym.Env):
             print(f"no robot,excuate action is {action}")
             obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
         else:
-            self.robot.robot_act(action)
+            self.robot.robot_act(action * 5,)
             obs["pixels"] = self.get_frame()
-            save_path = f'/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/step_{self.episode_step}.png'
-            cv2.imwrite(save_path, cv2.cvtColor(obs["pixels"], cv2.COLOR_RGB2BGR))
+            #debug for the image
+            #save_path = f'/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/step_{self.episode_step}.png'
+            #cv2.imwrite(save_path, cv2.cvtColor(obs["pixels"], cv2.COLOR_RGB2BGR))
         #print(f'Excuated action is {action}')
 
         self.episode_step += 1

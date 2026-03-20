@@ -4,7 +4,7 @@ import numpy as np
 
 
 class VideoRecorder:
-    def __init__(self, root_dir, render_size=128, fps=20):
+    def __init__(self, root_dir, render_size=256, fps=20):
         if root_dir is not None:
             self.save_dir = root_dir / 'train_video'
             self.save_dir.mkdir(exist_ok=True)
@@ -23,7 +23,7 @@ class VideoRecorder:
 
     def record(self, obs):
         if self.enabled:
-            frame = cv2.resize(obs[-3:].transpose(1, 2, 0),
+            frame = cv2.resize(obs, #.transpose(1, 2, 0)
                                dsize=(self.render_size, self.render_size),
                                interpolation=cv2.INTER_CUBIC)
             self.frames.append(frame)

@@ -11,7 +11,7 @@ import glob
 import re
 from pathlib import Path
 import argparse
-from utils import manual_open_mouse
+from utils.robot_utils import manual_open_mouse
 
 q = queue.Queue(maxsize=1) #only save the latest image
 def show_camera():
@@ -20,9 +20,9 @@ def show_camera():
         cv2.imwrite("camera.jpg", img)
 threading.Thread(target=show_camera, daemon=True).start()
 
-dataset_path = Path.cwd()
-if not Path(f"{dataset_path}/recorded").is_dir():
-    Path(f"{dataset_path}/recorded").mkdir(parents=True, exist_ok=True)
+dataset_path = '/home/carolzhang/Project/RegIL/ReG_IL_real/dataset' 
+if not Path(f"{dataset_path}").is_dir():
+    Path(f"{dataset_path}").mkdir(parents=True, exist_ok=True)
 
 robot = Robot("172.16.0.2")
 robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.40, 0.60)
@@ -109,13 +109,13 @@ if mouse:
             color_image = np.asanyarray(color_frame.get_data())
             x_center = int(np.size(color_image,1)/2)
             color_image = color_image[:, x_center-240:x_center+240]
-            resize_img = cv2.resize(image, (128, 128), interpolation=cv2.INTER_AREA)
-            q.put(color_image)
+            resize_img = cv2.resize(color_image, (128, 128), interpolation=cv2.INTER_AREA)
+            q.put(resize_img)
             step = {}
             step["robot_state"] = robot.state #save full state instead of just O_T_EE, because size is neglible compared to image data
             #step["gripper_state"] = gripper.state #NOTE: this actually takes takes quite some time as getting the GRIPPER STATE which is not realtime!!
             step["gripper_command"] = gripper_open #use commanded gripper state instead
-            step["motion"] = motion
+            step["motion"] = np.array([base_delta_linear, EE_delta_rot])
             step["image"] = color_image.copy()
 
             episode.append(step)
@@ -128,10 +128,10 @@ if mouse:
     save_ep = input("Save episode (Y/N)?")
 
     if save_ep.upper() == "Y":
-        ids = [int(re.search("episode(.*).npy", file).group(1)) for file in glob.glob(f"{dataset_path}/dataset/episode*.npy")]
+        ids = [int(re.search("episode(.*).npy", file).group(1)) for file in glob.glob(f"{dataset_path}/episode*.npy")]
         ep_id = max(ids)+1 if ids else 0
-        np.save(f"{dataset_path}/dataset/{task_name}_{ep_id}.npy", episode)
-        print(f"Demonstration saved in {dataset_path}/dataset/{task_name}_{ep_id}.npy")
+        np.save(f"{dataset_path}/{task_name}_{ep_id}.npy", episode)
+        print(f"Demonstration saved in {dataset_path}/{task_name}_{ep_id}.npy")
     else:
         print("Demonstration not saved")
 
