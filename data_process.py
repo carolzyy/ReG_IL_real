@@ -4,6 +4,7 @@ import numpy as np
 from utils.encoders import get_encoders
 from pathlib import Path
 from scipy.spatial.transform import Rotation
+import cv2
 
 def data_process(path='',retrieve_key='DINO'):
     # 1. load the saved data
@@ -17,6 +18,7 @@ def data_process(path='',retrieve_key='DINO'):
     feature_traj = []
     act_traj = []
     pixel_traj = []
+    motion_traj = []
 
 
     for idx in range(len(demo)-1):
@@ -32,6 +34,7 @@ def data_process(path='',retrieve_key='DINO'):
 
         action = np.append(delta_p, gripper) #dx,dy,dz,gripper
         act_traj.append(action)
+        motion_traj.append(demo[idx]['motion'])
 
 
 
@@ -41,7 +44,9 @@ def data_process(path='',retrieve_key='DINO'):
             "pixels": np.array(pixel_traj),
         },
         "actions": np.array(act_traj),
+        "motion": np.array(motion_traj),
     }
+    save_images_to_mp4(pixel_traj, output_filename='output.mp4', fps=30)
 
     # 1. Print nested observation shapes
     assert len(feature_traj) == len(act_traj)==len(pixel_traj)
@@ -61,14 +66,48 @@ def get_action_matrix(state1,state2):
 
 def save_dataset(folder_path):
     base_dir = Path(folder_path)
-    for file_path in base_dir.glob('episode1.npy'):
+    for file_path in base_dir.glob('reach_0.npy'):
         print(f"Processing: {file_path.name}")
         processed_data = data_process(file_path)
-        new_filename = f"data_{file_path.name}"
+        new_filename = f"dataset_{file_path.name}"
         save_path = base_dir / new_filename
 
         # 4. Save the processed file
         np.save(save_path, processed_data)
         print(f"Saved to: {save_path}")
 
-save_dataset('/home/carol/Project/4-RegIC_IL/ReG_IL_real/expert_demos')
+
+
+def save_images_to_mp4(image_list, output_filename='output.mp4', fps=30):
+    """
+    Converts a list of images (numpy arrays) into an MP4 video.
+    """
+    if not image_list:
+        print("The image list is empty.")
+        return
+
+    # 1. Determine dimensions from the first image
+    height, width, layers = image_list[0].shape
+    size = (width, height)
+
+    # 2. Define the codec and create VideoWriter object
+    # 'mp4v' is widely compatible with .mp4 containers
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_filename, fourcc, fps, size)
+
+    for img in image_list:
+        # Optional: Standardize size if images vary
+        if (img.shape[1], img.shape[0]) != size:
+            img = cv2.resize(img, size)
+
+        # Note: OpenCV uses BGR. If your images are RGB (PIL/Matplotlib),
+        # uncomment the next line:
+        # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        out.write(img)
+
+    out.release()
+    print(f"Successfully saved {len(image_list)} frames to {output_filename}")
+
+data = np.load('/expert_demos/data_reach.npy', allow_pickle=True).item()
+print(data.keys())
