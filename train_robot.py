@@ -50,7 +50,7 @@ class WorkspaceIL:
 
 
         # create envs
-        self.cfg.suite.task_make_fn.max_episode_len =1000
+        self.cfg.suite.task_make_fn.max_episode_len = 500
         self.cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
         self.cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
         self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
@@ -71,6 +71,7 @@ class WorkspaceIL:
         self.timer = utils.Timer()
         self._global_step = 0
         self._global_episode = 1
+        self.episode_step = 0
 
         self.video_recorder = VideoRecorder(
             self.work_dir if self.cfg.save_video else None
@@ -111,14 +112,22 @@ class WorkspaceIL:
 
 
     def eval(self):
-        print(f'======================Start eval==============================')
+        
         self.agent.train(False)
         episode_rewards_gt,episode_rewards = [],[]
         ep_reward_dict = {}
         episode, total_reward_gt,total_reward = 0, 0, 0
         eval_until_episode = utils.Until(self.cfg.suite.num_eval_episodes)
 
+        robot_ready = (self.env.robot.robot_mode == RobotMode.Idle)
+        while not robot_ready:
+            time.sleep(0.1)
+            robot_ready = (self.env.robot.robot_mode == RobotMode.Idle)
+            
+
         while eval_until_episode(episode):
+            print(f'======================Start eval EP{episode}==============================')
+            
             observation,done = self.env.reset()
             self.agent.buffer_reset(observation)
             step = 0
@@ -135,6 +144,7 @@ class WorkspaceIL:
                         observation,
                         retrieve_only=True,
                     )
+                    time.sleep(0.1)
                 next_observation, done = self.env.step(action.squeeze())
                 self.video_recorder.record(next_observation['pixels'])
                 retrive_reward, retrieve_action,reward_dict = self.agent.get_reward(next_observation)
@@ -195,6 +205,7 @@ class WorkspaceIL:
                     self.eval()
                     observation,done = self.env.reset()
                     self.agent.buffer_reset(observation)
+                    self.episode_step = 0
                 with torch.no_grad():
                     policy_action = self.agent.act(
                         obs = observation.copy(),
@@ -203,6 +214,7 @@ class WorkspaceIL:
                                             )
 
                 next_observation,done = self.env.step(policy_action)
+                self.episode_step = self.episode_step  +1
 
                 self.agent.update_obs_and_retrieve(next_observation)
                 self.video_recorder.record(next_observation['pixels'].copy())
@@ -213,8 +225,9 @@ class WorkspaceIL:
                     ep_reward_dict[name] = ep_reward_dict.get(name,0) + reward_dict[name]
                 success = False
                 if done:
-                    success_input = input("Achive the max length, Success or not(Y/N):")
+                    success_input = input(f"Achive the max length, Success or not(Y/N):")
                     success = (success_input.upper() == "Y")
+                    self.episode_step = 0
 
                 self.agent.add_buffer(observation, next_observation,done,policy_action,retrive_reward, retrieve_action,success=success)
                 metrics = self.agent.update()
@@ -231,6 +244,7 @@ class WorkspaceIL:
                     episode_reward = 0
                     ep_reward_dict = {}
                     self._global_episode = self._global_episode + 1
+                    self.episode_step = 0
                     break
 
                 else:
@@ -265,19 +279,23 @@ class WorkspaceIL:
                     is_button, _ = self.env.get_done()
                     time.sleep(0.2)
 
-                success_input = input("Success or not(Y/N):")
+                success_input = input(f"Success or not(Y/N):")
                 success = (success_input.upper() == "Y")
                 observation = next_observation
-                next_observation = self.env.get_frame()
+                next_observation = self.env.get_observation()
+                
                 self.agent.update_obs_and_retrieve(next_observation)
                 retrive_reward, retrieve_action, reward_dict = self.agent.get_reward(next_observation)
                 done = True
                 self.agent.add_buffer(observation, next_observation, done, self.env.input_action, retrive_reward,
                                       retrieve_action,success=success)
 
-                print(f'This episode ended with {success},robot start reset')
+                print(f'This episode ended with {success}, eposide{self.global_episode},Step{self.episode_step},robot start reset')
+                print("-" * 40)
                 time.sleep(0.5)
                 observation, done = self.env.reset()
+                self.episode_step = 0
+
                 self.agent.buffer_reset(observation)
                 episode_reward = 0
                 ep_reward_dict = {}

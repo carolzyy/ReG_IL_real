@@ -41,6 +41,8 @@ def test_camera():
             pipeline.stop()
         cv2.destroyAllWindows()
 
+
+
 def test_franka():
     print("-----Testing robot connection-----------")
     #from franky import *
@@ -73,7 +75,6 @@ def test_franka():
     #robot.move(motion)
     print('Back to the initial pose')
 
-test_franka()
 
 def check_franka_interface(robot_ip="172.16.0.2"):
     print("-----Testing robot connection-----------")
@@ -248,3 +249,44 @@ def test_spacelib_hid():
                 break
 
             time.sleep(0.1)
+
+
+import time
+import numpy as np
+def test_demo():
+    robot_ip="172.16.0.2"
+    data = np.load('/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/dataset_matrix_reach_0.npy',allow_pickle=True).item()
+    action = data['actions']
+    motion = data['motion']
+
+    print("-----Testing robot connection-----------")
+    # Initialize the robot
+    print(f"Connecting to robot at {robot_ip}...")
+    robot = Robot(robot_ip)
+    print("Connected! Press the buttons on the robot to test them.")
+    print("Press Ctrl+C to exit this script.")
+    print("-" * 40)
+    robot.relative_dynamics_factor = 0.05
+    robot.recover_from_errors()
+    init_config = JointMotion(
+            [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001,
+             2.4785007061817375, 0.785398163397]
+        )
+    robot.move(init_config, asynchronous=False)
+    time.sleep(1)
+
+    last_mode = False
+    robot.relative_dynamics_factor = 0.05
+    print(f"Start testing")
+
+    for act in action:
+        #motion1 = CartesianMotion(Affine(act[:3]), ReferenceType.Relative)
+        # A linear motion in Cartesian space relative to the initial position
+        motion = CartesianMotion(Affine(act[:3]), ReferenceType.Relative,
+                                 #relative_dynamics_factor=0.05
+                                 )
+        #robot.move(act, asynchronous=False)
+        robot.move(motion, asynchronous=True)
+        time.sleep(1/20)
+
+test_camera()

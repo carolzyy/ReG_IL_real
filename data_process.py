@@ -60,8 +60,7 @@ def get_action_matrix(state1,state2):
     pose_delta = state1.O_T_EE.inverse *  state2.O_T_EE
     #combined_action = [None]*7
     delta_p = pose_delta.translation
-    #combined_action[3:6] = Rotation.from_quat(pose_delta.quaternion).as_euler("xyz")
-    #combined_action[6] = current_state["gripper_command"]
+    #delta_p = state2.O_T_EE.translation - state1.O_T_EE.translation
     return delta_p
 
 def save_dataset(folder_path):
@@ -69,13 +68,12 @@ def save_dataset(folder_path):
     for file_path in base_dir.glob('reach_0.npy'):
         print(f"Processing: {file_path.name}")
         processed_data = data_process(file_path)
-        new_filename = f"dataset_{file_path.name}"
-        save_path = base_dir / new_filename
+        new_filename = f"dataset_matrix_{file_path.name}"
+        save_path = Path('/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/' )/ new_filename
 
         # 4. Save the processed file
         np.save(save_path, processed_data)
         print(f"Saved to: {save_path}")
-
 
 
 def save_images_to_mp4(image_list, output_filename='output.mp4', fps=30):
@@ -109,5 +107,7 @@ def save_images_to_mp4(image_list, output_filename='output.mp4', fps=30):
     out.release()
     print(f"Successfully saved {len(image_list)} frames to {output_filename}")
 
-data = np.load('/expert_demos/data_reach.npy', allow_pickle=True).item()
-print(data.keys())
+#data = np.load('/expert_demos/data_reach.npy', allow_pickle=True).item()
+#print(data.keys())
+
+save_dataset(folder_path='/home/carolzhang/Project/RegIL/ReG_IL_real/dataset/')

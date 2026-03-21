@@ -2,7 +2,7 @@ defaults:
   - _self_
 
 suite: franka
-tasks:
+tasks: 
   # Scene 1
   - reach
   #- put_orange_into_bowl

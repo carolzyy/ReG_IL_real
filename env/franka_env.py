@@ -7,6 +7,7 @@ import pickle
 from scipy.spatial.transform import Rotation
 import pyrealsense2 as rs
 from franky import *
+import time
 
 
 def get_quaternion_orientation(cartesian):
@@ -24,14 +25,14 @@ class Franka():
         self,
         action_dim = 4,
         use_mouse=False,
+        gripper_open = True
     ):
         super(Franka, self).__init__()
         self.action_dim = action_dim #（dx,dy,dz,gripper)
 
         self.n_channels = 3
-        self.recording_frequency = 30
         self.gripper_open_status = True
-        self.motion_dynamics_factor = 0.05
+        self.motion_dynamics_factor = 0.1
         if use_mouse:
             from utils.robot_utils import manual_open_mouse
             self.mouse = manual_open_mouse()
@@ -54,13 +55,21 @@ class Franka():
             [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001,
              2.4785007061817375, 0.785398163397]
         )
+        self.gripper_open_init = gripper_open
 
     def robot_reset(self):
-        print('Robot start reset.......')
         self.robot.recover_from_errors()
+        robot_ready = (self.robot_mode == RobotMode.Idle)
+        while not robot_ready:
+            time.sleep(0.1)
+            robot_ready = (self.robot_mode == RobotMode.Idle) 
         self.robot.move(self.init_config)
-        self.gripper_open()
-        print('Robot ready!!!!')
+        if self.gripper_open_init:
+            self.gripper_open()
+        else:
+            self.gripper_close()
+        time.sleep(1)
+        print(f'Robot Reset with gripper open {self.gripper_open_init}')
 
 
     def robot_act(self,action,asynchronous=True):
@@ -70,17 +79,19 @@ class Franka():
         motion = CartesianMotion(EE_delta, ReferenceType.Relative,
                                  relative_dynamics_factor=self.motion_dynamics_factor)
         self.robot.move(motion, asynchronous=asynchronous)  # async = interupts motion with next command when it arrives
-        if (gripper_act < 0.5) and self.gripper_open_status:
-            self.gripper_close()
-        elif (gripper_act > 0.5) and (not self.gripper_open_status):
-            self.gripper_open()
+        if self.gripper_open_init:
+            if ((gripper_act < 0.5) and self.gripper_open_status) or (not self.gripper_open_init):
+                self.gripper_close()
+            elif (gripper_act > 0.5) and (not self.gripper_open_status):
+                self.gripper_open()
 
 
     def gripper_close(self):
-        self.gripper.move_async(0.0,
-                                 self.gripper_speed,
-                                 self.gripper_force,
-                                 epsilon_outer=1.0)
+        self.gripper.move_async(width =0.0,
+                                 speed =self.gripper_speed,
+                                 #self.gripper_force,
+                                 #epsilon_outer=1.0
+                                 )
         self.gripper_open_status = False
 
     def gripper_open(self):
@@ -98,12 +109,14 @@ class Franka():
 class RobotEnv(gym.Env):
     def __init__(
         self,
+        gripper_open,
         height=224,
         width=224,
         use_robot=True,  # True when robot used
         max_path_length = 99,
         act_max = [1,1,1],
-        act_min = [0,0,0]
+        act_min = [0,0,0],
+
     ):
         super(RobotEnv, self).__init__()
         self.height = height
@@ -116,7 +129,6 @@ class RobotEnv(gym.Env):
         self.n_channels = 3
         self.reward = 0
         self.recording_frequency = 30
-        self.gripper_open = True
         self.motion_dynamics_factor = 0.10
         self.max_path_length =max_path_length
         self.robot = None
@@ -139,7 +151,9 @@ class RobotEnv(gym.Env):
             cfg = rs.config()
             cfg.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)  # set resolution and FPS here
             self.pipe.start(cfg)
-            self.robot = Franka()
+            self.robot = Franka(
+                gripper_open = gripper_open
+            )
 
     def act_preprocess(self,action):
         act_min = self.act_stat['min']
@@ -193,6 +207,16 @@ class RobotEnv(gym.Env):
             self.robot.robot.recover_from_errors()
 
         return done,mode
+    
+    def get_observation(self):
+        obs = {}
+        if self.robot is None:
+            print(f"no robot,excuate action is {action}")
+            obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
+        else:
+            obs["pixels"] = self.get_frame()
+
+        return obs
 
     def get_frame(self):
         frame = self.pipe.wait_for_frames()
@@ -237,10 +261,16 @@ def make(
     eval,
     pixel_keys,
     act_max,
-    act_min
+    act_min,
+    task
 ):
     # Convert task_names, which is a list, to a dictionary
-    #tasks = tasks
+    print(f'Init {task} env')
+    if 'reach' in task[0]:
+        gripper_open = False
+        print(f'close gripper')
+    else:
+        gripper_open = True
     env = RobotEnv(
                    height=height,
                    width=width,
@@ -248,29 +278,7 @@ def make(
                    max_path_length=max_episode_len,
                    act_max=act_max,
                    act_min=act_min,
+                   gripper_open = gripper_open
                    )
 
     return env
-
-
-if __name__ == "__main__":
-    env = RobotEnv()
-    obs = env.reset()
-
-    for i in range(30):
-        action = obs["features"]
-        action[0] += 2
-        obs, reward, done, _ = env.step(action)
-
-    for i in range(30):
-        action = obs["features"]
-        action[1] += 2
-        obs, reward, done, _ = env.step(action)
-
-    for i in range(30):
-        action = obs["features"]
-        action[2] += 2
-        obs, reward, done, _ = env.step(action)
-
-
-# check gripper
