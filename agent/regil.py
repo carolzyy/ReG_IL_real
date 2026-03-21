@@ -780,16 +780,22 @@ class RegAgent:
 
         return metrics
 
-    def init_demos(self,traj,skip=None,eval=False):
+    def init_demos(self,traj,skip=None,eval=False,sum_act=True):
         if skip is None:
             self.demo = traj
         else:
             #self.demo = []
             traj_len = len(traj['actions'])
             new_len = traj_len // skip
-            idx = np.linspace(0, traj_len - 1, new_len).astype(int)
+            idx = np.arange(0, new_len * skip, skip)
             save_traj = {}
-            save_traj['actions'] =  self.preprocess["actions"](traj['actions'][idx,])
+            raw_actions = traj['actions'][:new_len * skip]
+            sum_actions = raw_actions.reshape(new_len, skip, -1).sum(axis=1)
+            if sum_act:
+                save_action = sum_actions
+            else:
+                save_action = traj['actions'][idx,]
+            save_traj['actions'] =  self.preprocess["actions"](save_action) #()
             for key in traj['observations'].keys():
                 if key in self.preprocess.keys():
                     save_traj[key] = self.preprocess[key](traj['observations'][key][idx])
