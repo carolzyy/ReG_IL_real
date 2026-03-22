@@ -1,37 +1,25 @@
 import numpy as np
-import os
-import cv2
 
+# Load the .npz file
+file_path = '/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.22_train/regil/205057/all_retrieve_traj.npz'
+data = np.load(file_path)
 
+# 1. List all available keys in the file
+keys = data.files
+print(f"Keys in the file: {keys}")
 
+# 2. Analyze the contents of each key
+for key in keys:
+    array = data[key]
+    print(f"\nAnalysis for key: '{key}'")
+    print(f" - Shape: {array.shape}")
+    print(f" - Data Type: {array.dtype}")
+    
+    # Optional: Basic statistics for numerical data
+    if np.issubdtype(array.dtype, np.number):
+        print(f" - Min: {np.min(array)}")
+        print(f" - Max: {np.max(array)}")
+        print(f" - Mean: {np.mean(array)}")
 
-def save_images_to_mp4(image_list, output_filename='output.mp4', fps=30):
-    """
-    Converts a list of images (numpy arrays) into an MP4 video.
-    """
-    if not image_list:
-        print("The image list is empty.")
-        return
-
-    # 1. Determine dimensions from the first image
-    height, width, layers = image_list[0].shape
-    size = (width, height)
-
-    # 2. Define the codec and create VideoWriter object
-    # 'mp4v' is widely compatible with .mp4 containers
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_filename, fourcc, fps, size)
-
-    for img in image_list:
-        # Optional: Standardize size if images vary
-        if (img.shape[1], img.shape[0]) != size:
-            img = cv2.resize(img, size)
-
-        # Note: OpenCV uses BGR. If your images are RGB (PIL/Matplotlib),
-        # uncomment the next line:
-        # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-
-        out.write(img)
-
-    out.release()
-    print(f"Successfully saved {len(image_list)} frames to {output_filename}")
+# Close the file if you are done
+data.close()

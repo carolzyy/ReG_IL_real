@@ -79,7 +79,7 @@ class ReplayBuffer:
             success = next_obs_dict["goal_achieved"]
             if success:
                 ep_length = self.ptr - self.current_ep_start_index + 1
-                if ep_length + self.expert_size > 2000: #self.expert_max_size:
+                if ep_length + self.expert_size > 1000: #self.expert_max_size:
                     self.save_expert_npz(f'all_retrieve_traj.npz')
                     print('=================Save expert done=========================')
                     add = False
@@ -148,6 +148,9 @@ class ReplayBuffer:
             size=self.expert_size,
             **{f"obs_{k}": v[:self.expert_size] for k, v in self.exp_obs.items()},
             **{f"action_{k}": v[:self.expert_size] for k, v in self.exp_actions.items()},
+            **{f"reward": v[:self.expert_size] for v in self.exp_reward},
+            **{f"done": v[:self.expert_size] for v in self.exp_done},
+            **{f"next_obs_{k}": v[:self.expert_size] for k, v in self.exp_next_obs.items()},
         )
         print(f"[ReplayBuffer] Expert dataset saved to {filename}")
 
