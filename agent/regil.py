@@ -780,23 +780,16 @@ class RegAgent:
 
         return metrics
 
-    def init_demos(self,traj,skip=None,eval=False,sum_act=False):
+    def init_demos(self,traj,skip=None,eval=False):
         if skip is None:
             self.demo = traj
         else:
             #self.demo = []
             traj_len = len(traj['actions'])
             new_len = traj_len // skip
-            idx = np.arange(0, new_len * skip, skip)
+            idx = np.arange(0, new_len * skip, skip) #idx = np.linspace(0, traj_len - 1, new_len).astype(int)
             save_traj = {}
-            raw_actions = traj['actions'][:new_len * skip]
-
-            sum_actions = raw_actions.reshape(new_len, skip, 4).sum(axis=1)
-            if sum_act:
-                save_action = sum_actions
-                #have some bug lead to the leaf and right different, do notb know why
-            else:
-                save_action = traj['actions'][idx,]
+            save_action = traj['actions'][idx,]
             save_traj['actions'] =  self.preprocess["actions"](save_action) #()
             for key in traj['observations'].keys():
                 if key in self.preprocess.keys():

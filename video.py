@@ -32,3 +32,4 @@ class VideoRecorder:
         if self.enabled:
             path = self.save_dir / file_name
             imageio.mimsave(str(path), self.frames, fps=self.fps)
+        self.enabled = False

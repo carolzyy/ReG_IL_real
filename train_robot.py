@@ -114,9 +114,9 @@ class WorkspaceIL:
     def eval(self):
         
         self.agent.train(False)
-        episode_rewards_gt,episode_rewards = [],[]
+        success_list,episode_rewards = [],[]
+        episode = 0
         ep_reward_dict = {}
-        episode, total_reward_gt,total_reward = 0, 0, 0
         eval_until_episode = utils.Until(self.cfg.suite.num_eval_episodes)
 
         robot_ready = (self.env.robot.robot_mode == RobotMode.Idle)
@@ -131,6 +131,7 @@ class WorkspaceIL:
             observation,done = self.env.reset()
             self.agent.buffer_reset(observation)
             step = 0
+            total_reward = 0
 
 
             if episode == 0:
@@ -138,31 +139,49 @@ class WorkspaceIL:
 
             # plot obs with cv2
             while not done :
+                try:
 
-                with torch.no_grad(), utils.eval_mode(self.agent):
-                    action = self.agent.act(
-                        observation,
-                        retrieve_only=True,
-                    )
-                    time.sleep(0.1)
-                next_observation, done = self.env.step(action.squeeze())
-                self.video_recorder.record(next_observation['pixels'])
-                retrive_reward, retrieve_action,reward_dict = self.agent.get_reward(next_observation)
-                if retrive_reward is not None:
+                    with torch.no_grad(), utils.eval_mode(self.agent):
+                        action = self.agent.act(
+                            observation,
+                            retrieve_only=True,
+                        )
+                        time.sleep(0.1)
+                    next_observation, done = self.env.step(action.squeeze())
+                    self.video_recorder.record(next_observation['pixels'])
+                    retrive_reward, retrieve_action,reward_dict = self.agent.get_reward(next_observation)
                     total_reward = total_reward + retrive_reward
-                for name in reward_dict.keys():
-                    ep_reward_dict[name] = ep_reward_dict.get(name, 0) + reward_dict[name]
-                step += 1
+                    for name in reward_dict.keys():
+                        ep_reward_dict[name] = ep_reward_dict.get(name, 0) + reward_dict[name]
+                    step += 1
+                except ControlException as e:
+                    print(f"Button Pressed, error detected: {e}")
+                    is_button = True
+
+                    while is_button:
+                        is_button, _ = self.env.get_done()
+                        time.sleep(0.2)
+
+                    time.sleep(0.5)
+                    break
+
+            success_input = input(f"Success or not(Y/N):")
+            success = (success_input.upper() == "Y")
+
+            print(
+                f'This episode ended with {success}, eposide{episode},Step{step},robot start reset')
+            print("-" * 40)
 
             episode += 1
-            self.video_recorder.save(f"eval_{self.global_step}.mp4")
-            episode_rewards_gt.append(total_reward_gt / episode)
+            self.video_recorder.save(f"eval_{self.global_step}_{episode}.mp4")
             episode_rewards.append(total_reward / episode)
+            success_list.append(success)
 
         with self.logger.log_and_dump_ctx(self.global_step, ty="eval") as log:
             for env_idx, reward in enumerate(episode_rewards):
                 log(f"episode_reward", reward)
             log("episode", episode)
+            log("success_rate", np.mean(success_list))
             log("step", self.global_step)
             for name in ep_reward_dict.keys():
                 log(name, ep_reward_dict[name] / (episode + 1e-6))
@@ -171,6 +190,7 @@ class WorkspaceIL:
 
     def train(self):
         ep_mean_reward_list = []
+        success_list = []
 
         # Initialize demonstrations for this environment
         self.agent.init_demos(self.all_demo,skip=self.cfg.suite.demo_skip)
@@ -190,9 +210,6 @@ class WorkspaceIL:
 
         while train_until_step(self.global_step):
             try:
-                if self.global_episode == 0:
-                    
-                    self.video_recorder.record(observation['pixels'].copy())
 
                 if (
                     self.cfg.eval
@@ -217,7 +234,8 @@ class WorkspaceIL:
                 self.episode_step = self.episode_step  +1
 
                 self.agent.update_obs_and_retrieve(next_observation)
-                self.video_recorder.record(next_observation['pixels'].copy())
+                if self._global_episode == 0:
+                    self.video_recorder.record(next_observation['pixels'].copy())
 
                 retrive_reward,retrieve_action,reward_dict = self.agent.get_reward(next_observation)
                 episode_reward += retrive_reward
@@ -227,7 +245,7 @@ class WorkspaceIL:
                 if done:
                     success_input = input(f"Achive the max length, Success or not(Y/N):")
                     success = (success_input.upper() == "Y")
-                    self.episode_step = 0
+                    success_list.append(success)
 
                 self.agent.add_buffer(observation, next_observation,done,policy_action,retrive_reward, retrieve_action,success=success)
                 metrics = self.agent.update()
@@ -235,17 +253,19 @@ class WorkspaceIL:
 
 
                 if done :
-                    self.video_recorder.save(f"train_{self.global_step}.mp4")
-                    print(f'save the video to train_{self.global_step}.mp4')
+                    if self.train_video_recorder.enabled:
+                        self.train_video_recorder.save(
+                            f"train_step{self.global_step}_ep{self._global_episode}.mp4"
+                        )
+                        print(f"train_step{self.global_step}_ep{self._global_episode}.mp4")
                     ep_mean_reward_list.append(episode_reward)
                     # reset episode
                     observation,done = self.env.reset()
                     self.agent.buffer_reset(observation)
-                    episode_reward = 0
-                    ep_reward_dict = {}
                     self._global_episode = self._global_episode + 1
                     self.episode_step = 0
-                    break
+                    episode_reward = 0
+                    break # for debug
 
                 else:
                     observation = next_observation
@@ -257,6 +277,7 @@ class WorkspaceIL:
                         log("total_time", total_time)
                         log("step", self.global_step)
                         log("reward", np.mean(ep_mean_reward_list) ) #.sum() / len(ep_mean_reward_list))
+                        log("success_rate", np.mean(success_list))
                         for name in metrics.keys():
                             log(name, metrics[name])
 
@@ -264,6 +285,7 @@ class WorkspaceIL:
                             log(name, ep_reward_dict[name]/( len(ep_mean_reward_list)+1e-6))
                         ep_mean_reward_list = []
                         ep_reward_dict = {}
+                        success_list = []
 
 
                 # save snapshot
@@ -281,6 +303,7 @@ class WorkspaceIL:
 
                 success_input = input(f"Success or not(Y/N):")
                 success = (success_input.upper() == "Y")
+                success_list.append(success)
                 observation = next_observation
                 next_observation = self.env.get_observation()
                 

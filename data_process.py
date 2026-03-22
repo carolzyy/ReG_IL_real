@@ -58,9 +58,7 @@ def data_process(path='',retrieve_key='DINO'):
 
 def get_action_matrix(state1,state2):
     pose_delta = state1.O_T_EE.inverse *  state2.O_T_EE
-    #combined_action = [None]*7
     delta_p = pose_delta.translation
-    #delta_p = state2.O_T_EE.translation - state1.O_T_EE.translation
     return delta_p
 
 def save_dataset(folder_path):
