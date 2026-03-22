@@ -289,4 +289,5 @@ def test_demo():
         robot.move(motion, asynchronous=True)
         time.sleep(1/20)
 
-test_camera()
+
+test_franka()

@@ -118,7 +118,7 @@ if mouse:
             #step["gripper_state"] = gripper.state #NOTE: this actually takes takes quite some time as getting the GRIPPER STATE which is not realtime!!
             step["gripper_command"] = gripper_open #use commanded gripper state instead
             step["motion"] = np.array(base_delta_linear)
-            step["image"] = color_image.copy()
+            step["image"] = resize_img.copy()
 
             episode.append(step)
             last_time = time.time()

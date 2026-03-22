@@ -79,12 +79,13 @@ class ReplayBuffer:
             success = next_obs_dict["goal_achieved"]
             if success:
                 ep_length = self.ptr - self.current_ep_start_index + 1
-                if ep_length + self.expert_size > self.expert_max_size:
-                    #self.save_expert_npz(f'all_retrieve_traj.npz')
-                    #print('=================Save expert done=========================')
+                if ep_length + self.expert_size > 2000: #self.expert_max_size:
+                    self.save_expert_npz(f'all_retrieve_traj.npz')
+                    print('=================Save expert done=========================')
                     add = False
                 else:
                     self.add_expert_episode(self.current_ep_start_index, self.ptr)
+                    print(f'=================Save expert traj current size{self.expert_size}=========================')
             self.current_ep_start_index = (self.ptr + 1) % self.max_size
 
         self.ptr = (self.ptr + 1) % self.max_size
@@ -821,7 +822,7 @@ class RegAgent:
         reward_dict = {}
         reward_dict['norm_best_dist'] = -norm_best_dis
         reward_dict['best_dist'] = -best_dis
-        reward = reward_dict[self.reward_type]
+        reward = -norm_best_dis
 
         return reward,retrieve_action,reward_dict
 

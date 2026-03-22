@@ -50,7 +50,7 @@ class WorkspaceIL:
 
 
         # create envs
-        self.cfg.suite.task_make_fn.max_episode_len = 500
+        self.cfg.suite.task_make_fn.max_episode_len = 250
         self.cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
         self.cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
         self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
@@ -91,8 +91,14 @@ class WorkspaceIL:
 
     def preprocess_demo(self,data_path,task):
         data = np.load(f'{data_path}/{task}.npy',allow_pickle=True).item()
+        
         action = data['actions']
+        ob_shape = data['observations']['pixels'].shape
         max_episode_len = len(action)
+        print(f'Load demo from {data_path}/{task}.npy, \n'
+              f'Demo length : {max_episode_len},\n'
+              f'Obs shape: {ob_shape}'
+              )
 
         act_stat = {
             'max': action.max(axis=0),
@@ -126,7 +132,7 @@ class WorkspaceIL:
             
 
         while eval_until_episode(episode):
-            print(f'======================Start eval EP{episode}==============================')
+            print(f'======================Start eval EP{episode+1}/{self.cfg.suite.num_eval_episodes}==============================')
             
             observation,done = self.env.reset()
             self.agent.buffer_reset(observation)

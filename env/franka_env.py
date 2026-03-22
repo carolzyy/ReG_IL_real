@@ -228,7 +228,7 @@ class RobotEnv(gym.Env):
         # cv2 imshow uses bgr channel ordering, but if your model was trained on rgb you would need to switch channel order here
         color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
 
-        return color_image
+        return color_image.copy()
 
     def reset(self):  # currently same positions, with gripper opening
         self.episode_step = 0

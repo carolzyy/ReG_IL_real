@@ -23,7 +23,8 @@ def data_process(path='',retrieve_key='DINO'):
 
     for idx in range(len(demo)-1):
         image = demo[idx]['image'] # resize to 128,128 for the buffer size
-        pixel_traj.append(image)
+        resize_img = cv2.resize(image, (128, 128), interpolation=cv2.INTER_AREA)
+        pixel_traj.append(resize_img)
         retrieve_feature = {}
         if encoder is not None:
             for name in encoder.keys():
