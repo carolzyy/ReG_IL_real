@@ -113,6 +113,7 @@ if mouse:
             x_center = int(np.size(color_image,1)/2)
             color_image = color_image[:, x_center-240:x_center+240]
             resize_img = cv2.resize(color_image, (128, 128), interpolation=cv2.INTER_AREA)
+            resize_img = cv2.cvtColor(resize_img, cv2.COLOR_BGR2RGB)
             q.put(resize_img)
             step = {}
             step["robot_state"] = robot.state #save full state instead of just O_T_EE, because size is neglible compared to image data
@@ -131,8 +132,9 @@ if mouse:
     save_ep = input("Save episode (Y/N)?")
 
     if save_ep.upper() == "Y":
-        ids = [int(re.search("episode(.*).npy", file).group(1)) for file in glob.glob(f"{dataset_path}/episode*.npy")]
-        ep_id = max(ids)+1 if ids else 0
+        #ids = [int(re.search("*.npy", file).group(1)) for file in glob.glob(f"{dataset_path}/*.npy")]
+        ids = len(list(glob.glob(f"{dataset_path}/*.npy")))
+        ep_id = ids +1
         np.save(f"{dataset_path}/raw_{task_name}_{ep_id}.npy", episode)
         print(f"Demonstration saved in {dataset_path}/{task_name}_{ep_id}.npy")
     else:

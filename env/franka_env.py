@@ -22,7 +22,7 @@ class Franka():
         self.gripper_open_status = True
         self.motion_dynamics_factor = 0.1
         robot = Robot("172.16.0.2")
-        robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.40, 0.60)
+        
         self.robot = robot
         gripper = Gripper("172.16.0.2")
         self.gripper_speed = 0.05  # [m/s]
@@ -32,17 +32,14 @@ class Franka():
         self.gripper = gripper
         self.init_config = JointMotion(
             [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001,
-             2.4785007061817375, 0.785398163397]
+             2.4785007061817375, 0.785398163397],#relative_dynamics_factor=0.05
         )
         self.gripper_open_init = gripper_open
 
     # gripper.asyn_move may lead to problem, so change to move
     def robot_reset(self):
         self.robot.recover_from_errors()
-        robot_ready = (self.robot_mode == RobotMode.Idle)
-        while not robot_ready:
-            time.sleep(0.1)
-            robot_ready = (self.robot_mode == RobotMode.Idle)
+        self.robot.relative_dynamics_factor = 0.05
 
         if self.gripper_open_init:
             self.gripper.move(width=self.gripper_width,
@@ -54,17 +51,8 @@ class Franka():
                               )
         time.sleep(0.2)
 
-        self.robot.move(self.init_config,
-                        relative_dynamics_factor=0.05)
-
-        '''
-        time.sleep(1)
-        
-        robot_ready = (self.robot_mode == RobotMode.Idle)
-        while not robot_ready:
-            time.sleep(0.1)
-            robot_ready = (self.robot_mode == RobotMode.Idle) 
-        '''
+        self.robot.move(self.init_config)
+        self.robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.40, 0.4)
         print(f'Robot Reset with gripper open {self.gripper_open_init}')
 
 

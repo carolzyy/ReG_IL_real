@@ -79,7 +79,7 @@ class ReplayBuffer:
             success = next_obs_dict["goal_achieved"]
             if success:
                 ep_length = self.ptr - self.current_ep_start_index + 1
-                if ep_length + self.expert_size > 100: #self.expert_max_size:
+                if ep_length + self.expert_size > self.expert_max_size:
                     self.save_expert_npz(f'all_retrieve_traj.npz')
                     print('=================Save expert done=========================')
                     add = False
@@ -130,7 +130,7 @@ class ReplayBuffer:
 
             # copy observations
             image = traj['observations']['pixels'][idx]
-            resize_img = cv2.resize(image, (128, 128), interpolation=cv2.INTER_AREA)
+            resize_img = cv2.resize(image, (84, 84), interpolation=cv2.INTER_AREA)
             self.exp_obs['pixels'][exp_i] = resize_img #traj['observations']['pixels'][idx]
 
             # copy actions

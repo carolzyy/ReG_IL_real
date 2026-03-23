@@ -41,6 +41,9 @@ class WorkspaceIL:
         self.cfg = cfg
         set_seed_everywhere(cfg.seed)
         self.device = torch.device(cfg.device)
+        self.video_recorder = VideoRecorder(
+            self.work_dir if self.cfg.save_video else None
+        )
 
         # load data
         task_idx = 0
@@ -50,7 +53,7 @@ class WorkspaceIL:
 
 
         # create envs
-        self.cfg.suite.task_make_fn.max_episode_len = 50
+        self.cfg.suite.task_make_fn.max_episode_len = 250
         self.cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
         self.cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
         self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
@@ -73,9 +76,7 @@ class WorkspaceIL:
         self._global_episode = 1
         self.episode_step = 0
 
-        self.video_recorder = VideoRecorder(
-            self.work_dir if self.cfg.save_video else None
-        )
+
 
     @property
     def global_step(self):
@@ -91,13 +92,20 @@ class WorkspaceIL:
 
     def preprocess_demo(self,data_path,task):
         data = np.load(f'{data_path}/{task}.npy',allow_pickle=True).item()
+
         
         action = data['actions']
-        ob_shape = data['observations']['pixels'].shape
+        obs = data['observations']['pixels']
+        self.video_recorder.init(obs[0])
+        for image in obs[1:]:
+            self.video_recorder.record(image)
+        self.video_recorder.save('demo.mp4')
+
+
         max_episode_len = len(action)
         print(f'Load demo from {data_path}/{task}.npy, \n'
               f'Demo length : {max_episode_len},\n'
-              f'Obs shape: {ob_shape}'
+              f'Obs shape: {obs.shape}'
               )
 
         act_stat = {
@@ -302,7 +310,7 @@ class WorkspaceIL:
 
                 while is_button:
                     is_button, _ = self.env.get_done()
-                    time.sleep(0.2)
+                    time.sleep(0.5)
 
                 success_input = input(f"Success or not(Y/N):")
                 success = (success_input.upper() == "Y")
@@ -311,13 +319,13 @@ class WorkspaceIL:
                 next_observation = self.env.get_observation()
                 
                 self.agent.update_obs_and_retrieve(next_observation)
-                retrive_reward, retrieve_action, reward_dict = self.agent.get_reward(next_observation)
+                retrive_reward, retrieve_action, reward_dict = self.agent.get_reward()
                 episode_reward = episode_reward + retrive_reward
                 ep_reward_list.append(episode_reward)
                 done = True
                 self.agent.add_buffer(observation, next_observation, done, self.env.input_action, retrive_reward,
                                       retrieve_action,success=success)
-                print(f'EP{self.global_episode}: ended with {success}, Step {episode_step},Episode_reward {episode_reward}')
+                print(f'EP {self.global_episode}: ended with {success}, Step {episode_step},Episode_reward {episode_reward}')
                 print("-" * 40)
 
                 
