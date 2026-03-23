@@ -83,7 +83,7 @@ class Franka():
 
 
     def gripper_close(self):
-        self.gripper.move(width =0.0,
+        self.gripper.move(width =0.005,
                                  speed =self.gripper_speed,
                                  #self.gripper_force,
                                  #epsilon_outer=1.0

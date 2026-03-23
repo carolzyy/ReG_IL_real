@@ -45,7 +45,8 @@ pitch_scaling = 0.10
 yaw_scaling = 0.20
 
 gripper_open = True
-gripper.move_async(width, speed)
+#gripper.move_async(width, speed)
+gripper.move(0.005, speed)
 
 episode = []
 
