@@ -143,15 +143,24 @@ class ReplayBuffer:
             self.agu_start_ptr = self.expert_ptr
 
     def save_expert_npz(self, filename="expert_buffer.npz"):
-        np.savez_compressed(
-            filename,
-            size=self.expert_size,
-            **{f"obs_{k}": v[:self.expert_size] for k, v in self.exp_obs.items()},
-            **{f"action_{k}": v[:self.expert_size] for k, v in self.exp_actions.items()},
-            **{f"reward": v[:self.expert_size] for v in self.exp_reward},
-            **{f"done": v[:self.expert_size] for v in self.exp_done},
-            **{f"next_obs_{k}": v[:self.expert_size] for k, v in self.exp_next_obs.items()},
-        )
+        # 创建一个要保存的字典，把所有数据塞进去
+        save_dict = {
+            "size": self.expert_size,
+            "reward": self.exp_reward[:self.expert_size],
+            "done": self.exp_done[:self.expert_size],
+        }
+
+        for k, v in self.exp_obs.items():
+            save_dict[f"obs_{k}"] = v[:self.expert_size]
+
+        for k, v in self.exp_actions.items():
+            save_dict[f"action_{k}"] = v[:self.expert_size]
+
+        for k, v in self.exp_next_obs.items():
+            save_dict[f"next_obs_{k}"] = v[:self.expert_size]
+
+        # 执行保存
+        np.savez_compressed(filename, **save_dict)
         print(f"[ReplayBuffer] Expert dataset saved to {filename}")
 
     def sample_buff(self, ):

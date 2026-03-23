@@ -1,7 +1,7 @@
 import numpy as np
 
 # Load the .npz file
-file_path = '/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.22_train/regil/205057/all_retrieve_traj.npz'
+file_path = '/home/carol/Project/4-RegIC_IL/ReG_IL_real/exp_local/03.17_train/205057/all_retrieve_traj.npz'
 data = np.load(file_path)
 
 # 1. List all available keys in the file
@@ -20,6 +20,8 @@ for key in keys:
         print(f" - Min: {np.min(array)}")
         print(f" - Max: {np.max(array)}")
         print(f" - Mean: {np.mean(array)}")
-
+reward = data['reward']
+done = data['done']
+obs = data['obs_pixels']
 # Close the file if you are done
 data.close()
