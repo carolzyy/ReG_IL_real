@@ -79,7 +79,7 @@ class ReplayBuffer:
             success = next_obs_dict["goal_achieved"]
             if success:
                 ep_length = self.ptr - self.current_ep_start_index + 1
-                if ep_length + self.expert_size > 1000: #self.expert_max_size:
+                if ep_length + self.expert_size > 100: #self.expert_max_size:
                     self.save_expert_npz(f'all_retrieve_traj.npz')
                     print('=================Save expert done=========================')
                     add = False

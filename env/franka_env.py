@@ -69,6 +69,10 @@ class Franka():
         else:
             self.gripper_close()
         time.sleep(1)
+        robot_ready = (self.robot_mode == RobotMode.Idle)
+        while not robot_ready:
+            time.sleep(0.1)
+            robot_ready = (self.robot_mode == RobotMode.Idle) 
         print(f'Robot Reset with gripper open {self.gripper_open_init}')
 
 
@@ -87,7 +91,7 @@ class Franka():
 
 
     def gripper_close(self):
-        self.gripper.move_async(width =0.0,
+        self.gripper.move_async(width =0.01,
                                  speed =self.gripper_speed,
                                  #self.gripper_force,
                                  #epsilon_outer=1.0
@@ -129,7 +133,6 @@ class RobotEnv(gym.Env):
         self.n_channels = 3
         self.reward = 0
         self.recording_frequency = 30
-        self.motion_dynamics_factor = 0.10
         self.max_path_length =max_path_length
         self.robot = None
         self.act_stat = {

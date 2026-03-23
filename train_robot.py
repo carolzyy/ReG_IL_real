@@ -259,11 +259,6 @@ class WorkspaceIL:
 
 
                 if done :
-                    if self.train_video_recorder.enabled:
-                        self.train_video_recorder.save(
-                            f"train_step{self.global_step}_ep{self._global_episode}.mp4"
-                        )
-                        print(f"train_step{self.global_step}_ep{self._global_episode}.mp4")
                     ep_mean_reward_list.append(episode_reward)
                     # reset episode
                     observation,done = self.env.reset()
@@ -271,7 +266,6 @@ class WorkspaceIL:
                     self._global_episode = self._global_episode + 1
                     self.episode_step = 0
                     episode_reward = 0
-                    break # for debug
 
                 else:
                     observation = next_observation
@@ -321,8 +315,9 @@ class WorkspaceIL:
 
                 print(f'This episode ended with {success}, eposide{self.global_episode},Step{self.episode_step},robot start reset')
                 print("-" * 40)
-                time.sleep(0.5)
+                
                 observation, done = self.env.reset()
+                time.sleep(2)
                 self.episode_step = 0
 
                 self.agent.buffer_reset(observation)
@@ -369,3 +364,5 @@ def main(cfg):
 
 if __name__ == "__main__":
     main()
+
+# libfranka: Move command aborted: motion aborted by reflex! ["cartesian_motion_generator_velocity_discontinuity", "cartesian_motion_generator_acceleration_discontinuity", "cartesian_motion_generator_joint_acceleration_discontinuity"]
