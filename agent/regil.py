@@ -825,7 +825,7 @@ class RegAgent:
         self.retrieve_context = self.get_retrieve_act()
         return self.retrieve_context
 
-    def get_reward(self, next_obs):
+    def get_reward(self,):
         self.retrieve_context = self.get_retrieve_act()
         norm_best_dis = self.retrieve_context['norm_best_dist']
         retrieve_action = self.retrieve_context['retrieve_action']
@@ -837,24 +837,6 @@ class RegAgent:
         reward = -norm_best_dis
 
         return reward,retrieve_action,reward_dict
-
-
-    def calculate_cosine_sim(self,state,traj):
-        # context: list of embeddings
-        context_traj = [
-            ctx[self.retriver.retrieve_key]
-            for ctx in traj['retrieve_feature']
-        ]
-        context_traj = np.array(context_traj)  # (N, D)
-
-        # Normalize vectors
-        next_norm = state / (np.linalg.norm(state) + 1e-8)
-        context_norm = context_traj / (np.linalg.norm(context_traj, axis=1, keepdims=True) + 1e-8)
-
-        # Cosine similarity
-        cosine_sim = np.dot(context_norm, next_norm)  # (N,)
-
-        return cosine_sim
 
 
     def get_retrieve_act(self):
@@ -923,7 +905,8 @@ class RegAgent:
 
         return context,best_dist,retrieve_state_idx_s,retrieve_state_idx_end,path_len
 
-    def add_buffer(self,observation,
+    def add_buffer(self,
+                   observation,
                    next_observation,
                    done,
                    policy_action,

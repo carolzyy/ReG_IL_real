@@ -59,7 +59,6 @@ def test_franka():
     # In franky/libfranka, RobotMode.UserStopped is typically 4
     state = robot.state
     print(state.robot_mode)
-    robot.relative_dynamics_factor = 0.05
 
     #motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
     #robot.move(motion1, asynchronous=False)

@@ -9,22 +9,10 @@ import pyrealsense2 as rs
 from franky import *
 import time
 
-
-def get_quaternion_orientation(cartesian):
-    """
-    Get quaternion orientation from axis angle representation
-    """
-    pos = cartesian[:3]
-    ori = cartesian[3:]
-    r = Rotation.from_rotvec(ori)
-    quat = r.as_quat()
-    return np.concatenate([pos, quat], axis=-1)
-
 class Franka():
     def __init__(
         self,
         action_dim = 4,
-        use_mouse=False,
         gripper_open = True
     ):
         super(Franka, self).__init__()
@@ -33,15 +21,6 @@ class Franka():
         self.n_channels = 3
         self.gripper_open_status = True
         self.motion_dynamics_factor = 0.1
-        if use_mouse:
-            from utils.robot_utils import manual_open_mouse
-            self.mouse = manual_open_mouse()
-            recording_frequency = 30
-            linear_scaling = 0.15
-            # rot_scaling = 0.15
-            roll_scaling = 0.10
-            pitch_scaling = 0.10
-            yaw_scaling = 0.20
         robot = Robot("172.16.0.2")
         robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.40, 0.60)
         self.robot = robot
@@ -57,22 +36,35 @@ class Franka():
         )
         self.gripper_open_init = gripper_open
 
+    # gripper.asyn_move may lead to problem, so change to move
     def robot_reset(self):
         self.robot.recover_from_errors()
         robot_ready = (self.robot_mode == RobotMode.Idle)
         while not robot_ready:
             time.sleep(0.1)
-            robot_ready = (self.robot_mode == RobotMode.Idle) 
-        self.robot.move(self.init_config)
+            robot_ready = (self.robot_mode == RobotMode.Idle)
+
         if self.gripper_open_init:
-            self.gripper_open()
+            self.gripper.move(width=self.gripper_width,
+                                    speed=self.gripper_speed,
+                                    )
         else:
-            self.gripper_close()
+            self.gripper.move(width=0.005,
+                              speed=self.gripper_speed,
+                              )
+        time.sleep(0.2)
+
+        self.robot.move(self.init_config,
+                        relative_dynamics_factor=0.05)
+
+        '''
         time.sleep(1)
+        
         robot_ready = (self.robot_mode == RobotMode.Idle)
         while not robot_ready:
             time.sleep(0.1)
             robot_ready = (self.robot_mode == RobotMode.Idle) 
+        '''
         print(f'Robot Reset with gripper open {self.gripper_open_init}')
 
 
@@ -91,18 +83,21 @@ class Franka():
 
 
     def gripper_close(self):
-        self.gripper.move_async(width =0.01,
+        self.gripper.move(width =0.0,
                                  speed =self.gripper_speed,
                                  #self.gripper_force,
                                  #epsilon_outer=1.0
-                                 )
+                                 ) #move_async
+        #self.gripper.grasp_async(0.0, self.gripper_speed, self.gripper_force, epsilon_outer=1.0)
+        time.sleep(0.1)
         self.gripper_open_status = False
 
     def gripper_open(self):
-        self.gripper.move_async(
+        self.gripper.move(
                                  width = self.gripper_width,
                                  speed = self.gripper_speed,
                                  )
+        time.sleep(0.1)
         self.gripper_open_status = True
     
     @property
@@ -116,10 +111,11 @@ class RobotEnv(gym.Env):
         gripper_open,
         height=224,
         width=224,
-        use_robot=True,  # True when robot used
+        use_robot=False,  # True when robot used
         max_path_length = 99,
         act_max = [1,1,1],
         act_min = [0,0,0],
+        debug_log= '/home/carol/Project/4-RegIC_IL/ReG_IL_real/exp_local/03.17_train/205057/all_retrieve_traj.npz'
 
     ):
         super(RobotEnv, self).__init__()
@@ -157,6 +153,16 @@ class RobotEnv(gym.Env):
             self.robot = Franka(
                 gripper_open = gripper_open
             )
+        else:
+            file_path = debug_log
+            print(f'Debug from logs:{file_path}')
+            data = np.load(file_path)
+            self.obs_traj = data['obs_pixels']
+            self.act_traj = data['action_policy']
+            #self.done_traj = data['done']
+
+
+
 
     def act_preprocess(self,action):
         act_min = self.act_stat['min']
@@ -188,8 +194,12 @@ class RobotEnv(gym.Env):
 
         action = self.act_posprocess(action)
         if self.robot is None:
-            print(f"no robot,excuate action is {action}")
-            obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
+            #print(f"no robot,excuate action is {action}")
+            if getattr(self,"obs_traj",None) is not None:
+                obs[f"pixels"] = self.obs_traj[self.episode_step]
+                #done = self.done_traj[self.episode_step]
+            else:
+                obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
         else:
             self.robot.robot_act(action * 5,)
             obs["pixels"] = self.get_frame()
@@ -214,13 +224,18 @@ class RobotEnv(gym.Env):
     def get_observation(self):
         obs = {}
         if self.robot is None:
-            print(f"no robot,excuate action is {action}")
+            print(f"no robot,")
             obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
         else:
             obs["pixels"] = self.get_frame()
 
         return obs
 
+    '''
+    RealSense get_data()  Always RGB.
+    OpenCV Functions (resize, crop)  Don't care (works on either)
+    OpenCV Display (imshow) Needs BGR. need be cv2.COLOR_RGB2BGR.
+    '''
     def get_frame(self):
         frame = self.pipe.wait_for_frames()
         color_frame = frame.get_color_frame()
@@ -236,12 +251,22 @@ class RobotEnv(gym.Env):
     def reset(self):  # currently same positions, with gripper opening
         self.episode_step = 0
         if self.use_robot:
-            print("resetting")
-            self.robot.robot_reset()
+            print("----- Starting Robot Reset Process ----")
+            try:
+                self.robot.robot_reset()
+                print("Robot Reset Successful.")
+            except Exception as e:
+                # 捕获所有可能的错误（如 libfranka::Exception, RuntimeError 等）
+                print(f"!!! Robot Reset Failed: {e} !!!")
 
+                try:
+                    print("Attempting automatic error recovery...")
+                    self.robot.robot.recover_from_errors()
+                    self.robot.robot_reset()
+                except:
+                    print("Critical Hardware Error: Please check the E-Stop or Network.")
             obs = {}
             obs["pixels"] = self.get_frame()
-
             return obs,False
         else:
             obs = {}
@@ -249,10 +274,6 @@ class RobotEnv(gym.Env):
             obs["pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
             return obs,False
 
-    def render(self, mode="rgb_array", width=640, height=480):
-        print("rendering")
-        obs["pixels"] = self.get_frame()
-        return obs
 
 def make(
     frame_stack,

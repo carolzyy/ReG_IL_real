@@ -50,7 +50,7 @@ class WorkspaceIL:
 
 
         # create envs
-        self.cfg.suite.task_make_fn.max_episode_len = 250
+        self.cfg.suite.task_make_fn.max_episode_len = 50
         self.cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
         self.cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
         self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
@@ -155,7 +155,7 @@ class WorkspaceIL:
                         time.sleep(0.1)
                     next_observation, done = self.env.step(action.squeeze())
                     self.video_recorder.record(next_observation['pixels'])
-                    retrive_reward, retrieve_action,reward_dict = self.agent.get_reward(next_observation)
+                    retrive_reward, retrieve_action,reward_dict = self.agent.get_reward()
                     total_reward = total_reward + retrive_reward
                     for name in reward_dict.keys():
                         ep_reward_dict[name] = ep_reward_dict.get(name, 0) + reward_dict[name]
@@ -195,8 +195,9 @@ class WorkspaceIL:
         self.agent.train(True)
 
     def train(self):
-        ep_mean_reward_list = []
+        ep_reward_list = []
         success_list = []
+        episode_step = 0
 
         # Initialize demonstrations for this environment
         self.agent.init_demos(self.all_demo,skip=self.cfg.suite.demo_skip)
@@ -212,7 +213,6 @@ class WorkspaceIL:
         self.agent.buffer_reset(observation)
         episode_reward = 0
         ep_reward_dict = {}
-        self.video_recorder.init(observation['pixels'], enabled=True)
 
         while train_until_step(self.global_step):
             try:
@@ -228,7 +228,7 @@ class WorkspaceIL:
                     self.eval()
                     observation,done = self.env.reset()
                     self.agent.buffer_reset(observation)
-                    self.episode_step = 0
+                    episode_step = 0
                 with torch.no_grad():
                     policy_action = self.agent.act(
                         obs = observation.copy(),
@@ -237,13 +237,13 @@ class WorkspaceIL:
                                             )
 
                 next_observation,done = self.env.step(policy_action)
-                self.episode_step = self.episode_step  +1
+                episode_step = episode_step  +1
 
                 self.agent.update_obs_and_retrieve(next_observation)
                 if self._global_episode == 0:
                     self.video_recorder.record(next_observation['pixels'].copy())
 
-                retrive_reward,retrieve_action,reward_dict = self.agent.get_reward(next_observation)
+                retrive_reward,retrieve_action,reward_dict = self.agent.get_reward()
                 episode_reward += retrive_reward
                 for name in reward_dict.keys():
                     ep_reward_dict[name] = ep_reward_dict.get(name,0) + reward_dict[name]
@@ -259,7 +259,9 @@ class WorkspaceIL:
 
 
                 if done :
-                    ep_mean_reward_list.append(episode_reward)
+                    ep_reward_list.append(episode_reward)
+                    print(
+                        f'EP{self.global_episode}: ended with {success}, Step {episode_step},Episode_reward {episode_reward}')
                     # reset episode
                     observation,done = self.env.reset()
                     self.agent.buffer_reset(observation)
@@ -276,14 +278,15 @@ class WorkspaceIL:
                     with self.logger.log_and_dump_ctx(self.global_frame, ty="train") as log:
                         log("total_time", total_time)
                         log("step", self.global_step)
-                        log("reward", np.mean(ep_mean_reward_list) ) #.sum() / len(ep_mean_reward_list))
+                        log("episode", np.array(len(success_list)))
+                        log("reward", np.mean(ep_reward_list) )
                         log("success_rate", np.mean(success_list))
                         for name in metrics.keys():
                             log(name, metrics[name])
 
                         for name in ep_reward_dict.keys():
-                            log(name, ep_reward_dict[name]/( len(ep_mean_reward_list)+1e-6))
-                        ep_mean_reward_list = []
+                            log(name, ep_reward_dict[name]/( len(ep_reward_list)+1e-6))
+                        ep_reward_list = []
                         ep_reward_dict = {}
                         success_list = []
 
@@ -309,20 +312,21 @@ class WorkspaceIL:
                 
                 self.agent.update_obs_and_retrieve(next_observation)
                 retrive_reward, retrieve_action, reward_dict = self.agent.get_reward(next_observation)
+                episode_reward = episode_reward + retrive_reward
+                ep_reward_list.append(episode_reward)
                 done = True
                 self.agent.add_buffer(observation, next_observation, done, self.env.input_action, retrive_reward,
                                       retrieve_action,success=success)
-
-                print(f'This episode ended with {success}, eposide{self.global_episode},Step{self.episode_step},robot start reset')
+                print(f'EP{self.global_episode}: ended with {success}, Step {episode_step},Episode_reward {episode_reward}')
                 print("-" * 40)
+
                 
                 observation, done = self.env.reset()
                 time.sleep(2)
-                self.episode_step = 0
+                episode_step = 0
 
                 self.agent.buffer_reset(observation)
                 episode_reward = 0
-                ep_reward_dict = {}
                 self._global_episode += 1
 
 

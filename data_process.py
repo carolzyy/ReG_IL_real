@@ -74,8 +74,8 @@ def save_dataset(folder_path):
         np.save(save_path, processed_data)
         print(f"Saved to: {save_path}")
 
-
-def save_images_to_mp4(image_list, output_filename='output.mp4', fps=30):
+from video import VideoRecorder
+def save_images_to_mp4(image_list, output_path='./', fps=30):
     """
     Converts a list of images (numpy arrays) into an MP4 video.
     """
@@ -86,25 +86,18 @@ def save_images_to_mp4(image_list, output_filename='output.mp4', fps=30):
     # 1. Determine dimensions from the first image
     height, width, layers = image_list[0].shape
     size = (width, height)
-
-    # 2. Define the codec and create VideoWriter object
-    # 'mp4v' is widely compatible with .mp4 containers
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_filename, fourcc, fps, size)
+    recoder = VideoRecorder(output_path, render_size=width)
+    recoder.init(image_list[0])
 
     for img in image_list:
         # Optional: Standardize size if images vary
         if (img.shape[1], img.shape[0]) != size:
             img = cv2.resize(img, size)
 
-        # Note: OpenCV uses BGR. If your images are RGB (PIL/Matplotlib),
-        # uncomment the next line:
-        # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        recoder.record(img)
 
-        out.write(img)
-
-    out.release()
-    print(f"Successfully saved {len(image_list)} frames to {output_filename}")
+    recoder.save('output.mp4')
+    print(f"Successfully saved {len(image_list)} frames to {output_path}/output.mp4")
 
 #data = np.load('/expert_demos/data_reach.npy', allow_pickle=True).item()
 #print(data.keys())
