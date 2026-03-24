@@ -135,8 +135,9 @@ if mouse:
         #ids = [int(re.search("*.npy", file).group(1)) for file in glob.glob(f"{dataset_path}/*.npy")]
         ids = len(list(glob.glob(f"{dataset_path}/*.npy")))
         ep_id = ids +1
-        np.save(f"{dataset_path}/raw_{task_name}_{ep_id}.npy", episode)
-        print(f"Demonstration saved in {dataset_path}/{task_name}_{ep_id}.npy")
+        save_file_name = f"{dataset_path}/raw_{task_name}_{ep_id}.npy"
+        np.save(save_file_name, episode)
+        print(f"Demonstration saved in {save_file_name}")
     else:
         print("Demonstration not saved")
 

@@ -23,8 +23,7 @@ def data_process(path='',retrieve_key='DINO'):
 
     for idx in range(len(demo)-1):
         image = demo[idx]['image'] # resize to 128,128 for the buffer size
-        resize_img = cv2.resize(image, (128, 128), interpolation=cv2.INTER_AREA)
-        pixel_traj.append(resize_img)
+        pixel_traj.append(image)
         retrieve_feature = {}
         if encoder is not None:
             for name in encoder.keys():
@@ -47,7 +46,7 @@ def data_process(path='',retrieve_key='DINO'):
         "actions": np.array(act_traj),
         "motion": np.array(motion_traj),
     }
-    save_images_to_mp4(pixel_traj, output_filename='output.mp4', fps=30)
+    save_images_to_mp4(pixel_traj, file_name=path.stem+'.mp4', fps=30)
 
     # 1. Print nested observation shapes
     assert len(feature_traj) == len(act_traj)==len(pixel_traj)
@@ -64,18 +63,18 @@ def get_action_matrix(state1,state2):
 
 def save_dataset(folder_path):
     base_dir = Path(folder_path)
-    for file_path in base_dir.glob('reach_0.npy'):
+    for file_path in base_dir.glob('raw_*.npy'):
         print(f"Processing: {file_path.name}")
         processed_data = data_process(file_path)
-        new_filename = f"dataset_matrix_{file_path.name}"
-        save_path = Path('/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/' )/ new_filename
+        new_filename = f"dataset_{file_path.name}"
+        save_path = Path.cwd() / 'expert_demos' / new_filename
 
         # 4. Save the processed file
         np.save(save_path, processed_data)
         print(f"Saved to: {save_path}")
 
 from video import VideoRecorder
-def save_images_to_mp4(image_list, output_path='./', fps=30):
+def save_images_to_mp4(image_list, output_path='./', file_name='output.mp4'):
     """
     Converts a list of images (numpy arrays) into an MP4 video.
     """
@@ -96,10 +95,10 @@ def save_images_to_mp4(image_list, output_path='./', fps=30):
 
         recoder.record(img)
 
-    recoder.save('output.mp4')
+    recoder.save(file_name)
     print(f"Successfully saved {len(image_list)} frames to {output_path}/output.mp4")
 
 #data = np.load('/expert_demos/data_reach.npy', allow_pickle=True).item()
 #print(data.keys())
 
-save_dataset(folder_path='/home/carolzhang/Project/RegIL/ReG_IL_real/dataset/')
+save_dataset(folder_path='/media/carol/KINGSTON/RegIL/dataset/')

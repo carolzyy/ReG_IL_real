@@ -14,8 +14,8 @@ hidden_dim: 256
 
 # train settings
 num_train_steps: 601000
-log_every_steps: 100
-save_every_steps: 1500
+log_every_steps: 2000
+save_every_steps: 5000
 history: false
 history_len: 10
 
@@ -38,8 +38,6 @@ data_path: ${root_dir}/expert_demos/
 
 task_make_fn:
   _target_: env.franka_env.make
-  frame_stack: ${suite.frame_stack}
-  action_repeat: ${suite.action_repeat}
   seed: ${seed}
   height: 128
   width: 128
@@ -49,3 +47,4 @@ task_make_fn:
   act_max: ???
   act_min: ???
   task: ${suite.task.tasks}
+  use_robot: true

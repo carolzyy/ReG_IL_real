@@ -124,6 +124,7 @@ class RobotEnv(gym.Env):
             'min':np.array(act_min),
         }
         self.input_action = None
+        debug = False
 
 
         self.observation_spec = spaces.Box(
@@ -141,7 +142,7 @@ class RobotEnv(gym.Env):
             self.robot = Franka(
                 gripper_open = gripper_open
             )
-        else:
+        elif debug:
             file_path = debug_log
             print(f'Debug from logs:{file_path}')
             data = np.load(file_path)
@@ -264,8 +265,7 @@ class RobotEnv(gym.Env):
 
 
 def make(
-    frame_stack,
-    action_repeat,
+    use_robot,
     seed,
     height,
     width,
@@ -286,7 +286,7 @@ def make(
     env = RobotEnv(
                    height=height,
                    width=width,
-                   use_robot=True,
+                   use_robot=use_robot,
                    max_path_length=max_episode_len,
                    act_max=act_max,
                    act_min=act_min,

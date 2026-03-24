@@ -51,6 +51,11 @@ class WorkspaceIL:
         task = self.cfg.suite.task.tasks[task_idx]
         raw_act_stat,max_episode_len,_ = self.preprocess_demo(data_path,task)
 
+        if self.cfg.agent.name == 'bc':
+            self.cfg.suite.num_train_steps = 100000
+            self.cfg.suite.save_every_steps = self.cfg.suite.eval_every_steps
+            self.cfg.suite.task_make_fn.use_robot = False
+
 
         # create envs
         self.cfg.suite.task_make_fn.max_episode_len = 250
@@ -66,9 +71,7 @@ class WorkspaceIL:
             self.env.observation_spec, self.env.action_spec, cfg
         )
 
-        if self.cfg.agent.name == 'bc':
-            self.cfg.suite.num_train_steps = 100000
-            self.cfg.suite.save_every_steps = self.cfg.suite.eval_every_steps
+
 
 
         self.timer = utils.Timer()
@@ -135,7 +138,7 @@ class WorkspaceIL:
 
         robot_ready = (self.env.robot.robot_mode == RobotMode.Idle)
         while not robot_ready:
-            time.sleep(0.1)
+            time.sleep(0.5)
             robot_ready = (self.env.robot.robot_mode == RobotMode.Idle)
             
 
@@ -146,10 +149,7 @@ class WorkspaceIL:
             self.agent.buffer_reset(observation)
             step = 0
             total_reward = 0
-
-
-            if episode == 0:
-                self.video_recorder.init(observation['pixels'], enabled=True)
+            self.video_recorder.init(observation['pixels'], enabled=True)
 
             # plot obs with cv2
             while not done :
@@ -158,10 +158,11 @@ class WorkspaceIL:
                     with torch.no_grad(), utils.eval_mode(self.agent):
                         action = self.agent.act(
                             observation,
-                            retrieve_only=True,
+                            eval_mode=True,
                         )
-                        time.sleep(0.1)
+
                     next_observation, done = self.env.step(action.squeeze())
+                    time.sleep(0.1)
                     self.video_recorder.record(next_observation['pixels'])
                     retrive_reward, retrieve_action,reward_dict = self.agent.get_reward()
                     total_reward = total_reward + retrive_reward
@@ -240,16 +241,13 @@ class WorkspaceIL:
                 with torch.no_grad():
                     policy_action = self.agent.act(
                         obs = observation.copy(),
-                        retrieve_only=True
-
+                        #retrieve_only=True
                                             )
 
                 next_observation,done = self.env.step(policy_action)
                 episode_step = episode_step  +1
 
                 self.agent.update_obs_and_retrieve(next_observation)
-                if self._global_episode == 0:
-                    self.video_recorder.record(next_observation['pixels'].copy())
 
                 retrive_reward,retrieve_action,reward_dict = self.agent.get_reward()
                 episode_reward += retrive_reward
