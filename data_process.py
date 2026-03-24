@@ -23,6 +23,7 @@ def data_process(path='',retrieve_key='DINO'):
 
     for idx in range(len(demo)-1):
         image = demo[idx]['image'] # resize to 128,128 for the buffer size
+        image = cv2.resize(image, (84, 84), interpolation=cv2.INTER_AREA)
         pixel_traj.append(image)
         retrieve_feature = {}
         if encoder is not None:
@@ -46,7 +47,7 @@ def data_process(path='',retrieve_key='DINO'):
         "actions": np.array(act_traj),
         "motion": np.array(motion_traj),
     }
-    save_images_to_mp4(pixel_traj, file_name=path.stem+'.mp4', fps=30)
+    save_images_to_mp4(image_list = pixel_traj,output_path=Path('/home/carolzhang/Project/RegIL/ReG_IL_real/'), file_name=path.stem+'.mp4')
 
     # 1. Print nested observation shapes
     assert len(feature_traj) == len(act_traj)==len(pixel_traj)
@@ -101,4 +102,4 @@ def save_images_to_mp4(image_list, output_path='./', file_name='output.mp4'):
 #data = np.load('/expert_demos/data_reach.npy', allow_pickle=True).item()
 #print(data.keys())
 
-save_dataset(folder_path='/media/carol/KINGSTON/RegIL/dataset/')
+save_dataset(folder_path='/home/carolzhang/Project/RegIL/ReG_IL_real/dataset')

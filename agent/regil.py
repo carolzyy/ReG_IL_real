@@ -129,7 +129,8 @@ class ReplayBuffer:
             exp_i = self.expert_ptr
 
             # copy observations
-            self.exp_obs['pixels'][exp_i] = traj['observations']['pixels'][idx]
+            image =  traj['observations']['pixels'][idx]
+            self.exp_obs['pixels'][exp_i] = cv2.resize(image, (84, 84), interpolation=cv2.INTER_AREA)
 
             # copy actions
             self.exp_actions['policy'][exp_i] = traj['actions'][idx]

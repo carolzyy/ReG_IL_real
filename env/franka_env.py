@@ -52,7 +52,7 @@ class Franka():
         time.sleep(0.2)
 
         self.robot.move(self.init_config)
-        self.robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.40, 0.4)
+        self.robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.20, 0.2)
         print(f'Robot Reset with gripper open {self.gripper_open_init}')
 
 
