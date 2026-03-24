@@ -49,11 +49,11 @@ class Franka():
             self.gripper.move(width=0.005,
                               speed=self.gripper_speed,
                               )
-        time.sleep(0.2)
+        time.sleep(0.5)
 
         self.robot.move(self.init_config)
         self.robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.20, 0.2)
-        print(f'Robot Reset with gripper open {self.gripper_open_init}')
+        #print(f'Robot Reset with gripper open {self.gripper_open_init}')
 
 
     def robot_act(self,action,asynchronous=True):
@@ -240,14 +240,11 @@ class RobotEnv(gym.Env):
     def reset(self):  # currently same positions, with gripper opening
         self.episode_step = 0
         if self.use_robot:
-            print("----- Starting Robot Reset Process ----")
             try:
                 self.robot.robot_reset()
-                print("Robot Reset Successful.")
+                print("-----  Robot Reset Process Finished----")
             except Exception as e:
-                # 捕获所有可能的错误（如 libfranka::Exception, RuntimeError 等）
                 print(f"!!! Robot Reset Failed: {e} !!!")
-
                 try:
                     print("Attempting automatic error recovery...")
                     self.robot.robot.recover_from_errors()

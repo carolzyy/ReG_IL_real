@@ -112,7 +112,7 @@ if mouse:
             color_image = np.asanyarray(color_frame.get_data())
             x_center = int(np.size(color_image,1)/2)
             color_image = color_image[:, x_center-240:x_center+240]
-            resize_img = cv2.resize(color_image, (128, 128), interpolation=cv2.INTER_AREA)
+            resize_img = cv2.resize(color_image, (84, 84), interpolation=cv2.INTER_AREA)
             resize_img = cv2.cvtColor(resize_img, cv2.COLOR_BGR2RGB)
             q.put(resize_img)
             step = {}
