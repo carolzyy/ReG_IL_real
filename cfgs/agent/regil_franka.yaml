@@ -7,7 +7,7 @@ device: ${device}
 lr: 5e-5
 hidden_dim: ${suite.hidden_dim}
 critic_target_tau: 0.005
-stddev_sch: "step_linear(0.3, 0.3,10000, 0.05, 30000)" #"step_linear(0.1, 0.1,${agent.replay_warmup} , 0.1, 30000)"
+stddev_sch: "step_linear(0.1, 0.1,${agent.replay_warmup} , 0.1, 30000)"
 stddev_clip: 0.3
 use_tb: ${use_tb}
 obs_type: ${obs_type}
