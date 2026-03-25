@@ -1,10 +1,10 @@
 defaults:
   - _self_
   - suite: franka
-  - agent: bc #bc regil baku #
+  - agent: regil #bc regil baku #
 
 # Root Dir
-root_dir: /home/carol/Project/4-RegIC_IL/ReG_IL_real # /home/carol/Project/4-RegIC_IL/ReG_IL_real
+root_dir: /home/carolzhang/Project/RegIL/ReG_IL_real # /home/carol/Project/4-RegIC_IL/ReG_IL_real
 
 # misc
 seed: 8
@@ -18,8 +18,7 @@ use_tb: true
 obs_type: "pixels" # pixels, features
 num_demos_per_task: 1
 encoder_type: 'resnet' # base, resnet
-policy_type: 'gpt' # mlp, gpt
-policy_head: deterministic # deterministic, gmm, bet, diffusion, vqbet
+
 use_proprio: false
 use_language: false
 use_actions: false #only for rt1

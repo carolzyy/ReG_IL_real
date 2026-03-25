@@ -324,7 +324,7 @@ class WorkspaceIL:
                 self.agent.add_buffer(observation, next_observation, done, self.env.input_action, retrive_reward,
                                       retrieve_action,success=success)
                 print(f'EP {self.global_episode}: ended with {success}, Step {episode_step},Episode_reward {episode_reward}')
-                print("-" * 40)
+                #print("-" * 40)
 
                 
                 observation, done = self.env.reset()

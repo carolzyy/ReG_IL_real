@@ -20,8 +20,8 @@ history: false
 history_len: 10
 
 # eval
-eval_every_steps: 1000
-num_eval_episodes: 10
+eval_every_steps: 2000
+num_eval_episodes: 5
 eval_history_len: 5
 
 # data loading
