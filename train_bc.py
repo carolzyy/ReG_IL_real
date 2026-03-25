@@ -20,15 +20,10 @@ def make_agent(obs_spec, action_spec, cfg):
     for key in cfg.suite.pixel_keys:
         obs_shape[key] = obs_spec.shape
     cfg.agent.obs_shape = obs_shape
+    print(f'The agent obs shape is {obs_shape}')
     cfg.agent.action_shape = action_spec.shape
     return hydra.utils.instantiate(cfg.agent)
 
-def set_seed_everywhere(seed):
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
 
 class WorkspaceIL:
     def __init__(self, cfg):
@@ -36,7 +31,7 @@ class WorkspaceIL:
         print(f"workspace: {self.work_dir}")
 
         self.cfg = cfg
-        set_seed_everywhere(cfg.seed)
+        utils.set_seed_everywhere(cfg.seed)
         self.device = torch.device(cfg.device)
         self.video_recorder = VideoRecorder(
             self.work_dir if self.cfg.save_video else None
@@ -214,7 +209,7 @@ def main(cfg):
     workspace = WorkspaceIL(cfg)
 
     # Load weights
-    if cfg.load_bc:
+    if cfg.eval:
         snapshots = {}
         bc_snapshot = Path(cfg.bc_weight)
         if not bc_snapshot.exists():
@@ -222,6 +217,8 @@ def main(cfg):
         print(f"loading bc weight: {bc_snapshot}")
         snapshots["bc"] = bc_snapshot
         workspace.load_snapshot(snapshots)
+        workspace.eval()
+
 
     workspace.train()
 

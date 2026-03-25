@@ -128,7 +128,7 @@ class RobotEnv(gym.Env):
 
 
         self.observation_spec = spaces.Box(
-            low=0, high=255, shape=(height, width, self.n_channels), dtype=np.uint8
+            low=0, high=255, shape=(self.n_channels,height, width), dtype=np.uint8
         )
         self.action_spec = spaces.Box(
             low=0.0, high=1.0, shape=(self.action_dim,), dtype=np.float32
@@ -234,6 +234,7 @@ class RobotEnv(gym.Env):
         color_image = cv2.resize(color_image, (self.width, self.height), interpolation=cv2.INTER_AREA)
         # cv2 imshow uses bgr channel ordering, but if your model was trained on rgb you would need to switch channel order here
         color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+        color_image = color_image.transpose(2, 0, 1)
 
         return color_image.copy()
 

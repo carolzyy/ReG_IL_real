@@ -13,144 +13,7 @@ from agent.networks.mlp import MLP
 from agent.retriever import get_retriever
 import numpy as np
 
-class ReplayBuffer:
-    def __init__(self,
-                 obs_shape,
-                 action_dim,
-                 batch_size=64,
-                 max_size=int(1e3),
-                 expert_size=int(1e5),
-                 expert_ratio=1
-                 ):
-        self.max_size = max_size
-        self.expert_max_size = expert_size
-        self.ptr = 0
-        self.size = 0
-        self.batch_size = batch_size
-        self.current_ep_start_index=0
-
-        # online replay buff
-        self.obs = {}
-        self.next_obs = {}
-        self.actions = {}
-        #for key, shape in obs_shape.items():
-
-        #dtype = np.uint8 if key == "pixels" else np.float32
-        self.obs["pixels"] = np.zeros((max_size, *obs_shape['pixels']), dtype=np.uint8)
-        self.next_obs["pixels"] = np.zeros((max_size, *obs_shape['pixels']), dtype=np.uint8)
-
-        for key in ['policy','retrieve']:
-            self.actions[key] = np.zeros((max_size, action_dim), dtype=np.float32)
-        self.reward = np.zeros((max_size, 1), dtype=np.float32)
-        self.done = np.zeros((max_size, 1), dtype=np.bool8)
-
-        self.expert_ptr = 0
-        self.expert_size = 0
-        self.agu_start_ptr = 0
-
-        #expert replay buffer
-        self.exp_obs = {}
-        self.exp_actions = {}
-        self.exp_next_obs = {}
-        self.exp_obs["pixels"] = np.zeros((expert_size, *obs_shape["pixels"]), dtype=np.uint8 )
-        self.exp_next_obs["pixels"] = np.zeros((expert_size, *obs_shape["pixels"]), dtype=np.uint8)
-        self.exp_reward = np.zeros((expert_size, 1), dtype=np.float32)
-        self.exp_done = np.zeros((expert_size, 1), dtype=np.bool8)
-        for key in ['policy', 'retrieve']:
-            self.exp_actions[key] = np.zeros((expert_size, action_dim), dtype=np.float32)
-
-    def add_step(self,obs_dict,next_obs_dict,act_dict,reward,done,add=True):
-
-        for key in self.obs.keys():
-            self.obs[key][self.ptr] = obs_dict[key]
-            self.next_obs[key][self.ptr] = next_obs_dict[key]
-
-
-        for key in self.actions.keys():
-            self.actions[key][self.ptr] = act_dict[key]
-
-        self.reward[self.ptr] = reward
-        self.done[self.ptr] = next_obs_dict["goal_achieved"]
-
-        if add and done:
-            success = next_obs_dict["goal_achieved"]
-            if success:
-                ep_length = self.ptr - self.current_ep_start_index + 1
-                if ep_length + self.expert_size > self.expert_max_size:
-                    #self.save_expert_npz(f'all_retrieve_traj.npz')
-                    print('=================Save expert done=========================')
-                    add = False
-                else:
-                    self.add_expert_episode(self.current_ep_start_index, self.ptr)
-            self.current_ep_start_index = (self.ptr + 1) % self.max_size
-
-        self.ptr = (self.ptr + 1) % self.max_size
-        self.size = min(self.size + 1, self.max_size)
-
-        return add
-
-
-    def add_expert_episode(self,ep_start_index, ep_end_index):
-        if ep_end_index >= ep_start_index:
-            indices = np.arange(ep_start_index, ep_end_index + 1)
-        else:
-            # wrapped around the ring buffer
-            indices = np.concatenate([
-                np.arange(ep_start_index, self.max_size),
-                np.arange(0, ep_end_index + 1)
-            ])
-        for idx in indices:
-            exp_i = self.expert_ptr
-
-            # copy observations
-            for key in self.exp_obs.keys():
-                self.exp_obs[key][exp_i] = self.obs[key][idx]
-                self.exp_next_obs[key][exp_i] = self.next_obs[key][idx]
-
-            # copy actions
-            for key in self.exp_actions.keys():
-                self.exp_actions[key][exp_i] = self.actions[key][idx]
-
-            self.exp_reward[exp_i] = self.reward[idx]
-            self.exp_done[exp_i] = self.done[idx]
-
-            # advance expert pointer
-            self.expert_ptr = (self.expert_ptr + 1) % self.expert_max_size
-            self.expert_size = min(self.expert_size + 1, self.expert_max_size)
-
-    def add_demo(self, traj):
-        indices = np.arange(self.expert_ptr, self.expert_ptr+len(traj['actions']))
-
-        for idx in indices:
-            exp_i = self.expert_ptr
-
-            # copy observations
-            self.exp_obs['pixels'][exp_i] = traj['observations']['pixels'][idx]
-
-            # copy actions
-            self.exp_actions['policy'][exp_i] = traj['actions'][idx]
-
-            # advance expert pointer
-            self.expert_ptr = (self.expert_ptr + 1) % self.expert_max_size
-            self.expert_size = min(self.expert_size + 1, self.expert_max_size)
-            self.agu_start_ptr = self.expert_ptr
-
-
-
-    def sample_exp(self, ):
-        # draw from expert buffer (FIFO)
-        exp_idx = np.random.randint(0, self.expert_size, size=self.batch_size)
-        obs = {}
-        action = {}
-
-        exp_part = self.exp_obs['pixels'][exp_idx]
-        obs['pixels'] = torch.as_tensor(exp_part, dtype=torch.float32)
-
-        for key in self.actions.keys():
-            exp_act = self.exp_actions[key][exp_idx] if len(exp_idx) > 0 else []
-            action[key] = torch.as_tensor(exp_act, dtype=torch.float32)
-
-        return obs,action
+from utils.read_data import ReplayBuffer
 
 
 class Actor(nn.Module):
@@ -232,7 +95,10 @@ class RegBCAgent:
 
         # actor parameters
         self._act_dim = action_shape[0]
-        self.buff = ReplayBuffer(obs_shape, action_shape[0],batch_size=batch_size)
+        self.buff = ReplayBuffer(obs_shape,
+                                 action_shape[0],
+                                 batch_size=batch_size,
+                                 expert_size=self.replay_warmup,)
 
         self.re_history_len = re_history_len
         self.retrieve_len = retrieve_len

@@ -18,8 +18,8 @@ train_encoder: true
 gamma: 0.99
 max_episode_len: ${suite.task_make_fn.max_episode_len}
 
-replay_warmup: 5000 #only retrieve agent
-bc_weight_schedule: "step_linear(1, 1,${agent.replay_warmup} , 0.0, 10000)" #'linear(0.0,0.9,40000)' ,40000
+replay_warmup: 3000 #only retrieve agent
+bc_weight_schedule: "step_linear(1, 1,${agent.replay_warmup} , 0.0, 5000)" #'linear(0.0,0.9,40000)' ,40000
 #debug
 
 pretrain_encoder: true

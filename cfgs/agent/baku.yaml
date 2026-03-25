@@ -15,9 +15,8 @@ encoder_type: ${encoder_type}
 policy_type: ${policy_type}
 policy_head: ${policy_head}
 pixel_keys: ${suite.pixel_keys}
-proprio_key: ${suite.proprio_key}
 feature_key: ${suite.feature_key}
-use_proprio: ${use_proprio}
+use_proprio: false
 train_encoder: true
 norm: false
 history: ${suite.history}
@@ -30,3 +29,21 @@ num_queries: ${num_queries}
 use_language: ${use_language}
 prompt: ${prompt}
 film: false
+
+bc_dataset:
+  _target_: utils.read_data.BCDataset
+  path: ${suite.data_path}
+  tasks: ${suite.task.tasks}
+  num_demos_per_task: 1
+  obs_type: ${obs_type}
+  history: false
+  history_len: ${suite.history_len}
+  prompt: ${prompt}
+  temporal_agg: ${temporal_agg}
+  num_queries: ${num_queries}
+  img_size: 84
+  intermediate_goal_step: 30
+  store_actions: true
+  pixel_keys: ${suite.pixel_keys}
+  #subsample: none
+

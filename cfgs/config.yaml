@@ -1,10 +1,10 @@
 defaults:
   - _self_
   - suite: franka
-  - agent: regil_${suite} #regil_meta regil_libero baku #
+  - agent: bc #bc regil baku #
 
 # Root Dir
-root_dir: /home/carolzhang/Project/RegIL/ReG_IL_real/
+root_dir: /home/carol/Project/4-RegIC_IL/ReG_IL_real # /home/carol/Project/4-RegIC_IL/ReG_IL_real
 
 # misc
 seed: 8
@@ -24,7 +24,7 @@ use_proprio: false
 use_language: false
 use_actions: false #only for rt1
 prompt: text # text, goal, intermediate_goal
-eval: true
+eval: false
 experiment: train
 experiment_label: ${policy_head}
 
@@ -39,7 +39,7 @@ context_len: 50
 batch_size: 64 #for baku
 
 # expert dataset
-expert_dataset: ${dataloader.bc_dataset}
+expert_dataset: ${bc_dataset}
 
 # Load weights
 load_bc: false
