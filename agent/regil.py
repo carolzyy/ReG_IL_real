@@ -943,12 +943,13 @@ class RegAgent:
         payload = {k: self.__dict__[k].state_dict() for k in keys_to_save}
         others = [
             "max_episode_len",
+            'update_cnt'
         ]
         payload.update({k: self.__dict__[k] for k in others})
 
 
         os.makedirs(os.path.dirname(save_dir), exist_ok=True)
-        filename = f"ep_{self.update_cnt}.pt"
+        filename = f"regil_model.pt"
         path = os.path.join(save_dir, filename)
         torch.save(payload, path)
         print(f"[Model] snapshot saved to {path}")

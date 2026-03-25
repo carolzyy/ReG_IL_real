@@ -134,18 +134,13 @@ class WorkspaceIL:
         success_list,episode_rewards = [],[]
         episode = 0
         ep_reward_dict = {}
+        self.agent.init_demos(self.all_demo,skip=self.cfg.suite.demo_skip)
         eval_until_episode = utils.Until(self.cfg.suite.num_eval_episodes)
-
-        robot_ready = (self.env.robot.robot_mode == RobotMode.Idle)
-        while not robot_ready:
-            time.sleep(0.5)
-            robot_ready = (self.env.robot.robot_mode == RobotMode.Idle)
-            
-
         while eval_until_episode(episode):
             print(f'======================Start eval EP{episode+1}/{self.cfg.suite.num_eval_episodes}==============================')
             
             observation,done = self.env.reset()
+
             self.agent.buffer_reset(observation)
             step = 0
             total_reward = 0
@@ -164,11 +159,13 @@ class WorkspaceIL:
                     next_observation, done = self.env.step(action.squeeze())
                     time.sleep(0.1)
                     self.video_recorder.record(next_observation['pixels'])
+                    self.agent.update_obs_and_retrieve(next_observation)
                     retrive_reward, retrieve_action,reward_dict = self.agent.get_reward()
                     total_reward = total_reward + retrive_reward
                     for name in reward_dict.keys():
                         ep_reward_dict[name] = ep_reward_dict.get(name, 0) + reward_dict[name]
                     step += 1
+                    observation = next_observation
                 except ControlException as e:
                     print(f"Button Pressed, error detected: {e}")
                     is_button = True
@@ -360,7 +357,7 @@ def main(cfg):
     workspace = WorkspaceIL(cfg)
 
     # Load weights
-    if cfg.load_bc:
+    if cfg.eval:
         snapshots = {}
         bc_snapshot = Path(cfg.bc_weight)
         if not bc_snapshot.exists():
@@ -368,6 +365,7 @@ def main(cfg):
         print(f"loading bc weight: {bc_snapshot}")
         snapshots["bc"] = bc_snapshot
         workspace.load_snapshot(snapshots)
+        workspace.eval()
 
     workspace.train()
 

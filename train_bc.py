@@ -178,6 +178,7 @@ class WorkspaceIL:
                         time.sleep(0.1)
                         self.video_recorder.record(next_observation['pixels'])
                         step += 1
+                        observation = next_observation
                 except ControlException as e:
                     print(f"Button Pressed, error detected: {e}")
                     is_button = True

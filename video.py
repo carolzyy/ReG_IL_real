@@ -23,7 +23,9 @@ class VideoRecorder:
 
     def record(self, obs):
         if self.enabled:
-            frame = cv2.resize(obs, #.transpose(1, 2, 0)
+            if obs.shape[-1]!=3:
+                obs = obs.transpose(1, 2, 0)
+            frame = cv2.resize(obs,
                                dsize=(self.render_size, self.render_size),
                                interpolation=cv2.INTER_CUBIC)
             self.frames.append(frame)
