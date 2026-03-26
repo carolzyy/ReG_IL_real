@@ -195,9 +195,7 @@ class RegBCAgent:
             "actions": lambda x: (x - self.stats["actions"]["min"])
                                  / (self.stats["actions"]["max"] - self.stats["actions"]["min"] + 1e-5),# useless
         }
-        print(f'BC ONLY: \n'
-              f'Retrieve: {self.retrieve},\n'
-              f'Add experience: {self.add_expert}')
+        print(f'BC Agent, Retrieve: {self.retrieve},Add experience: {self.add_expert}')
 
         self.train()
 
@@ -246,7 +244,7 @@ class RegBCAgent:
 
 
 
-    def act(self, obs, eval_mode=False):
+    def act(self, obs, eval_mode=False,**kwargs):
         """
         Selects an action using a Q-filter for both evaluation and training,
         optimized with torch.no_grad() for performance.
@@ -536,7 +534,7 @@ class RegBCAgent:
 
 
         os.makedirs(os.path.dirname(save_dir), exist_ok=True)
-        filename = f"ep_{self.update_cnt}.pt"
+        filename = f"bc_model.pt"
         path = os.path.join(save_dir, filename)
         torch.save(payload, path)
         print(f"[Model] snapshot saved to {path}")

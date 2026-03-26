@@ -401,9 +401,11 @@ class ReplayBuffer:
 
         for idx in indices:
             exp_i = self.expert_ptr
-
             # copy observations
-            self.exp_obs['pixels'][exp_i] = traj['observations']['pixels'][idx].transpose(2, 0, 1)
+            image = traj['observations']['pixels'][idx]
+            if image.shape[-1] == 3:
+                image = image.transpose(2, 0, 1)
+            self.exp_obs['pixels'][exp_i] =image
 
             # copy actions
             self.exp_actions['policy'][exp_i] = traj['actions'][idx]

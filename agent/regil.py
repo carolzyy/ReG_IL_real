@@ -408,7 +408,7 @@ class RegAgent:
         else:
             self.feature_key = feature_key
 
-        self.max_episode_len = max_episode_len
+        #self.max_episode_len = max_episode_len
 
         self.train_encoder = self.train_encoder
         self.update_cnt = 0
@@ -549,7 +549,7 @@ class RegAgent:
 
 
 
-    def act(self, obs,retrieve_only=False, eval_mode=False):
+    def act(self, obs,retrieve_only=False, eval_mode=False,**kwargs):
         """
         Selects an action using a Q-filter for both evaluation and training,
         optimized with torch.no_grad() for performance.
@@ -942,7 +942,7 @@ class RegAgent:
             keys_to_save = keys_to_save + ["critic", ]  # critic_opt
         payload = {k: self.__dict__[k].state_dict() for k in keys_to_save}
         others = [
-            "max_episode_len",
+            #"max_episode_len",
             'update_cnt'
         ]
         payload.update({k: self.__dict__[k] for k in others})

@@ -41,12 +41,13 @@ class WorkspaceIL:
         task_idx = 0
         data_path =self.cfg.suite.data_path
         task = self.cfg.suite.task.tasks[task_idx]
-        raw_act_stat,max_episode_len,_ = self.preprocess_demo(data_path,task)
+        max_episode_len,buff = self.preprocess_buff(task)
+        raw_act_stat,_,demo = self.preprocess_demo(data_path,task)
+        self.all_demo = buff
 
-        if self.cfg.agent.name == 'bc':
-            self.cfg.suite.num_train_steps = 100000
-            self.cfg.suite.save_every_steps = self.cfg.suite.eval_every_steps
-            self.cfg.suite.task_make_fn.use_robot = False
+        self.cfg.suite.num_train_steps = 100000
+        self.cfg.suite.save_every_steps = self.cfg.suite.eval_every_steps
+        self.cfg.suite.task_make_fn.use_robot = False
 
         # create envs
         self.cfg.suite.task_make_fn.max_episode_len = 250
@@ -82,7 +83,6 @@ class WorkspaceIL:
     def preprocess_demo(self,data_path,task):
         data = np.load(f'{data_path}/{task}.npy',allow_pickle=True).item()
 
-        
         action = data['actions']
         obs = data['observations']['pixels']
         self.video_recorder.init(obs[0])
@@ -105,17 +105,39 @@ class WorkspaceIL:
         action_xyz = 2*(action[..., :3]-act_stat['min'][:3])/(act_range+ 1e-8)-1
         action_gripper = np.where(action[..., 3:] > 0.5, 1.0, -1.0)
         action_processed = np.concatenate([action_xyz, action_gripper], axis=-1)
-        self.all_demo = {
+        all_demo = {
             'observations': data['observations'],
             'actions': action_processed,
         }
 
-        return act_stat,max_episode_len,self.all_demo
+        return act_stat,max_episode_len,all_demo
+
+    def preprocess_buff(self,task):
+        data_path = f'/home/carol/Project/4-RegIC_IL/ReG_IL_real/expert_demos/{task}_expert_buffer.npz'
+        data = np.load(data_path, allow_pickle=True)
+        action = data['action_policy']
+        obs = data['obs_pixels']
+        for image in obs[1:]:
+            self.video_recorder.record(image)
+        self.video_recorder.save('demo.mp4')
+
+        max_episode_len = len(action)
+        print(f'Load demo from {data_path}, \n'
+              f'Demo length : {max_episode_len},\n'
+              f'Obs shape: {obs.shape}'
+              )
+
+        all_demo = {
+            'observations': {'pixels':obs},
+            'actions': action,
+        }
+
+        return max_episode_len, all_demo
 
 
     def train(self):
         # Initialize demonstrations for this environment
-        self.agent.init_demos(self.all_demo,skip=self.cfg.suite.demo_skip)
+        self.agent.buff.add_demo(self.all_demo)
 
         # Step schedulers
         train_until_step = utils.Until(self.cfg.suite.num_train_steps, 1)
@@ -218,7 +240,7 @@ def main(cfg):
         print(f"loading bc weight: {bc_snapshot}")
         snapshots["bc"] = bc_snapshot
         workspace.load_snapshot(snapshots)
-        workspace.eval()
+        workspace.train()
 
 
     workspace.train()

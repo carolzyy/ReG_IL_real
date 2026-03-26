@@ -508,36 +508,7 @@ class BCAgent:
             self.actor.parameters(), lr=self.lr, weight_decay=1e-4
         )
 
-    def act(self, obs, prompt, norm_stats, step, global_step, eval_mode=False):
-        if norm_stats is not None:
-            pre_process = lambda s_qpos: (
-                s_qpos - norm_stats[self.proprio_key]["min"]
-            ) / (
-                norm_stats[self.proprio_key]["max"]
-                - norm_stats[self.proprio_key]["min"]
-                + 1e-5
-            )
-            post_process = (
-                lambda a: a
-                * (norm_stats["actions"]["max"] - norm_stats["actions"]["min"])
-                + norm_stats["actions"]["min"]
-            )
-
-        # lang projection
-        if self.use_language:
-            key = self.pixel_keys[0] if self.obs_type == "pixels" else self.feature_key
-            repeat_len = (
-                min(len(self.observation_buffer[key]) + 1, self.eval_history_len)
-                if self.obs_type == "pixels"
-                else min(len(self.observation_buffer) + 1, self.eval_history_len)
-            )
-            lang_features = (
-                torch.as_tensor(prompt["task_emb"], device=self.device)
-                .float()[None].repeat(repeat_len, 1)
-            )
-            lang_features = self.language_projector(lang_features) # MLP
-        else:
-            lang_features = None
+    def act(self, obs,  step, global_step, eval_mode=False,norm_stats=None,):
 
         if self.obs_type == "pixels":
             # add to buffer
@@ -551,21 +522,13 @@ class BCAgent:
                 ).float()
                 pixels = self.customAug(pixels / 255.0) if self.norm else pixels
                 # encoder
-                lang = lang_features if self.film else None
+                lang =  None
                 pixels = (
                     self.encoder[key](pixels, lang=lang) #resnet18_base
                     if self.separate_encoders
                     else self.encoder(pixels, lang=lang)
                 )
                 features.append(pixels)
-            if self.use_proprio:
-                obs[self.proprio_key] = pre_process(obs[self.proprio_key])
-                self.proprio_buffer.append(obs[self.proprio_key])
-                proprio = torch.as_tensor(
-                    np.array(self.proprio_buffer), device=self.device
-                ).float()
-                proprio = self.proprio_projector(proprio) # MLP:9->512->512
-                features.append(proprio)
             features = torch.cat(features, dim=-1).view(-1, self.repr_dim)
         else:
             self.observation_buffer.append(obs[self.feature_key])
@@ -574,52 +537,8 @@ class BCAgent:
             ).float()
             features = self.encoder(features)
 
-        # prompt
-        prompt_features = []
-        if self.use_language:
-            prompt_features.append(lang_features[-1:])
-        if self.prompt not in [None, "text", "one_hot"]:
-            if self.use_language:
-                prompt_lang_features = lang_features[-1:]
-                reshape_lang = True
-            else:
-                prompt_lang_features = None
 
-            if self.obs_type == "pixels":
-                for key in self.pixel_keys:
-                    pixel = torch.as_tensor(
-                        prompt[f"prompt_{key}"], device=self.device
-                    ).float()
-                    shape = pixel.shape
-                    # reshape lang features
-                    if self.use_language and reshape_lang:
-                        prompt_lang_features = prompt_lang_features.repeat(shape[0], 1)
-                        reshape_lang = False
-                    # augment
-                    pixel = self.customAug(pixel / 255.0) if self.norm else pixel
-                    # encode
-                    pixel = (
-                        self.encoder[key](pixel, lang=prompt_lang_features)
-                        if self.separate_encoders
-                        else self.encoder(pixel, lang=prompt_lang_features)
-                    )
-                    prompt_features.append(pixel)
-                if self.use_proprio:
-                    proprio = torch.as_tensor(
-                        prompt[f"prompt_{self.proprio_key}"], device=self.device
-                    ).float()
-                    proprio = self.proprio_projector(proprio)
-                    prompt_features.append(proprio)
-            else:
-                prompt_feat = torch.as_tensor(
-                    prompt[f"prompt_{self.feature_key}"], device=self.device
-                ).float()
-                prompt_feat = self.encoder(prompt_feat)
-                prompt_features.append(prompt_feat)
-        num_prompt_feats = len(prompt_features)
-        if num_prompt_feats > 0:
-            prompt_features = torch.cat(prompt_features, dim=-1).view(-1, self.repr_dim)
-            features = torch.cat([prompt_features, features], dim=0)
+        num_prompt_feats = 0
 
         # Pass cluster center to actor for bet
         kwargs = {}
@@ -904,6 +823,7 @@ class BCAgent:
                     self.encoder[key].load_state_dict(payload[f"encoder_{key}"])
             else:
                 self.__dict__[k].load_state_dict(payload[k])
+            print(f"  ✓ Loaded {k}")
 
         if self.policy_head == "bet":
             assert "cluster_centers" in payload

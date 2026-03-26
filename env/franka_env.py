@@ -188,7 +188,7 @@ class RobotEnv(gym.Env):
                 obs[f"pixels"] = self.obs_traj[self.episode_step]
                 #done = self.done_traj[self.episode_step]
             else:
-                obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
+                obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8).transpose(2, 0, 1)
         else:
             self.robot.robot_act(action * 5,)
             obs["pixels"] = self.get_frame()
@@ -214,7 +214,7 @@ class RobotEnv(gym.Env):
         obs = {}
         if self.robot is None:
             print(f"no robot,")
-            obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
+            obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8).transpose(2, 0, 1)
         else:
             obs["pixels"] = self.get_frame()
 
@@ -258,7 +258,7 @@ class RobotEnv(gym.Env):
         else:
             obs = {}
             #obs["features"] = np.zeros(self.feature_dim)
-            obs["pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8)
+            obs["pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8).transpose(2, 0, 1)
             return obs,False
 
 

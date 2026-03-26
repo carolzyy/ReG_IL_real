@@ -123,8 +123,8 @@ class Retriever():
             encoder = get_encoders([self.retrieve_key])
             self.encoder = encoder[self.retrieve_key]
         if img.shape[-1] != 3:
-            current_img = img.transpose(1, 2, 0)
-        current_state = self.encoder.encode(current_img)
+            img = img.transpose(1, 2, 0)
+        current_state = self.encoder.encode(img)
 
         return current_state
 
