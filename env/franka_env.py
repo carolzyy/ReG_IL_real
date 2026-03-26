@@ -191,7 +191,7 @@ class RobotEnv(gym.Env):
                 obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8).transpose(2, 0, 1)
         else:
             self.robot.robot_act(action * 5,)
-            obs["pixels"] = self.get_frame()
+            obs = self.get_frame()
             #debug for the image
             #save_path = f'/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/step_{self.episode_step}.png'
             #cv2.imwrite(save_path, cv2.cvtColor(obs["pixels"], cv2.COLOR_RGB2BGR))
@@ -216,7 +216,7 @@ class RobotEnv(gym.Env):
             print(f"no robot,")
             obs[f"pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8).transpose(2, 0, 1)
         else:
-            obs["pixels"] = self.get_frame()
+            obs = self.get_frame()
 
         return obs
 
@@ -231,12 +231,16 @@ class RobotEnv(gym.Env):
         color_image = np.asanyarray(color_frame.get_data())
         x_center = int(np.size(color_image, 1) / 2)
         color_image = color_image[:, x_center - 240:x_center + 240] #480,480
-        color_image = cv2.resize(color_image, (self.width, self.height), interpolation=cv2.INTER_AREA)
+        big_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+        color_image = cv2.resize(big_image, (self.width, self.height), interpolation=cv2.INTER_AREA)
         # cv2 imshow uses bgr channel ordering, but if your model was trained on rgb you would need to switch channel order here
-        color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+
         color_image = color_image.transpose(2, 0, 1)
 
-        return color_image.copy()
+        return {
+            'pixels': color_image.copy(),
+            'render': big_image.copy()
+        }
 
     def reset(self):  # currently same positions, with gripper opening
         self.episode_step = 0
@@ -252,8 +256,7 @@ class RobotEnv(gym.Env):
                     self.robot.robot_reset()
                 except:
                     print("Critical Hardware Error: Please check the E-Stop or Network.")
-            obs = {}
-            obs["pixels"] = self.get_frame()
+            obs = self.get_frame()
             return obs,False
         else:
             obs = {}

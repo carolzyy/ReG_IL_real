@@ -144,7 +144,7 @@ class WorkspaceIL:
             #self.agent.buffer_reset(observation)
             step = 0
             total_reward = 0
-            self.video_recorder.init(observation['pixels'], enabled=True)
+            self.video_recorder.init(observation['render'], enabled=True)
 
             # plot obs with cv2
             while not done:
@@ -160,7 +160,7 @@ class WorkspaceIL:
 
                     next_observation, done = self.env.step(action.squeeze())
                     time.sleep(0.1)
-                    self.video_recorder.record(next_observation['pixels'])
+                    self.video_recorder.record(next_observation['render'])
                     #self.agent.update_obs_and_retrieve(next_observation)
                     #retrive_reward, retrieve_action, reward_dict = self.agent.get_reward()
                     #total_reward = total_reward + retrive_reward
