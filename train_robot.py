@@ -259,6 +259,10 @@ class WorkspaceIL:
                 self.agent.add_buffer(observation, next_observation,done,policy_action,retrive_reward, retrieve_action,success=success)
                 metrics = self.agent.update()
                 self.logger.log_metrics(metrics, self.global_frame, ty="train")
+                if self.global_step >1000:
+                    for i in range(3):
+                        metrics = self.agent.update()
+                        self.logger.log_metrics(metrics, self.global_frame, ty="train")
 
 
                 if done :

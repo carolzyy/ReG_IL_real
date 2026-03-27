@@ -35,9 +35,10 @@ class Franka():
              2.4785007061817375, 0.785398163397],#relative_dynamics_factor=0.05
         )
         self.gripper_open_init = gripper_open
+        self.pos_range = np.array([0.05, 0.05, 0.03])
 
     # gripper.asyn_move may lead to problem, so change to move
-    def robot_reset(self):
+    def robot_reset(self,random_init=True):
         self.robot.recover_from_errors()
         self.robot.relative_dynamics_factor = 0.05
 
@@ -52,6 +53,9 @@ class Franka():
         time.sleep(0.5)
 
         self.robot.move(self.init_config)
+        if random_init:
+            self.randomize_ee_position()
+
         self.robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.20, 0.2)
         #print(f'Robot Reset with gripper open {self.gripper_open_init}')
 
@@ -91,6 +95,29 @@ class Franka():
     @property
     def robot_mode(self):
         return self.robot.state.robot_mode
+
+    def randomize_ee_position(self):
+        """
+        Moves the end-effector to a random position within a small
+        bounding box relative to the reset position.
+        """
+        # Generate random offsets: e.g., between -0.05m and +0.05m
+        random_offset = np.random.uniform(-self.pos_range, self.pos_range)
+
+        # Create an Affine transformation for the delta
+        # We keep rotation (0,0,0) to stay aligned with the reset orientation
+        random_delta = Affine(random_offset)
+
+        # Define the motion
+        motion = CartesianMotion(
+            random_delta,
+            ReferenceType.Relative,
+            relative_dynamics_factor=0.1
+        )
+
+        print(f"Randomizing position by: {random_offset}")
+        self.robot.move(motion,asynchronous=False)
+        time.sleep(0.2)
 
 
 class RobotEnv(gym.Env):

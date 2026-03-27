@@ -191,7 +191,7 @@ class WorkspaceIL:
         with self.logger.log_and_dump_ctx(self.global_step, ty="eval") as log:
             log("episode", episode)
             log("success_rate", np.mean(success_list))
-            log("step", self.global_step)
+            log("step", round*10 +episode)
 
 
     def load_snapshot(self, snapshots):
