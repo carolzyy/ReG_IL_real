@@ -32,7 +32,7 @@ def make_env(cfg,work_dir):
     task = cfg.suite.task.tasks[task_idx]
     raw_act_stat, max_episode_len, _ = preprocess_demo(work_dir,data_path, task,)
 
-    cfg.suite.task_make_fn.use_robot = False
+    cfg.suite.task_make_fn.use_robot = True
 
     # create envs
     max_episode_len = 250
@@ -54,6 +54,7 @@ def preprocess_demo(work_dir,data_path, task):
     video_recorder = VideoRecorder(
             work_dir
         )
+    data_path = '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos'
     data = np.load(f'{data_path}/{task}.npy', allow_pickle=True).item()
 
     action = data['actions']
@@ -132,12 +133,13 @@ class WorkspaceIL:
 
     def eval(self,round):
         self.agent.train(False)
+        num_eval_episodes = 2
         episode = 0
         success_list = []
-        eval_until_episode = utils.Until(self.cfg.suite.num_eval_episodes) #
+        eval_until_episode = utils.Until(num_eval_episodes) #
         while eval_until_episode(episode):
             print(
-                f'======================Start eval SCE{round}-EP{episode + 1}/{self.cfg.suite.num_eval_episodes}==============================')
+                f'======================Start eval SCE{round}-EP{episode + 1}/{num_eval_episodes}==============================')
 
             observation, done = self.env.reset()
 
@@ -209,26 +211,28 @@ class WorkspaceIL:
 def main():
     eval_list = [
         {"name": "BC",
-         "config": "/media/carol/KINGSTON/RegIL/model/03.25_train/bc/144140/.hydra/config.yaml"},
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.26_train/bc/144140/.hydra/config.yaml"},
+         {"name": "ReG_BC",
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.26_train/reg_bc/155845/.hydra/config.yaml"},
         {"name": "BAKU",
-         "config": "/media/carol/KINGSTON/RegIL/model/03.25_train/baku/145857/.hydra/config.yaml"},
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.26_train/baku/145857/.hydra/config.yaml"},
         {"name": "ReGIL",
-         "config": "/media/carol/KINGSTON/RegIL/model/regil/211951/.hydra/config.yaml"},
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.26_train/regil/164329/.hydra/config.yaml"},
     ]
-    timestamp = datetime.now().strftime("%m-%d")
+    timestamp = datetime.now().strftime("%m%d%H%M")
     work_dir = Path.cwd() / f"exp_local/{timestamp}_eval"
     env = None
     scene_num = 5
 
     for scene_id in range(scene_num):
         for item in eval_list:
-            print(f"\n" + "=" * 30+f"EVALUATING: {item['name']}"+ "=" * 30)
+            
             cfg = OmegaConf.load(item['config'])
-            cfg.expert_dataset = item['name']
             OmegaConf.resolve(cfg)
             if env is None:
                 env,max_len = make_env(cfg,work_dir)
             cfg.agent.max_episode_len = max_len
+            work_dir_agent = work_dir/item['name']
             workspace = WorkspaceIL(cfg=cfg,env=env,work_dir=work_dir)
             snapshots = {}
             model_path = item['config'].split('.hydra')[0]+f'snapshot/snapshot.pt'
@@ -238,6 +242,7 @@ def main():
             print(f"loading bc weight: {bc_snapshot}")
             snapshots["bc"] = bc_snapshot
             workspace.load_snapshot(snapshots)
+            print(f"\n" + "=" * 30+f"EVALUATING: {item['name']}"+ "=" * 30)
             workspace.eval(scene_id)
 
 

@@ -57,8 +57,16 @@ def test_franka():
                                0.785398163397])  # 0.0 > 0.001 to avoid errors
     robot.move(init_config)
     # In franky/libfranka, RobotMode.UserStopped is typically 4
-    state = robot.state
-    print(state.robot_mode)
+    #state = robot.state
+    #print(state.robot_mode)
+    gripper = Gripper("172.16.0.2")
+    speed = 0.05  # [m/s]
+    force = 20.0  # [N]
+    width = 0.06 #[m]
+    #gripper.move(width, speed)
+    ready = input('Get the cable ready:')
+    time.sleep(0.5)
+    gripper.grasp_async(0.00, speed/2, force, epsilon_outer=1.0)
 
     #motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
     #robot.move(motion1, asynchronous=False)
@@ -70,9 +78,12 @@ def test_franka():
     #robot.move(motion2, asynchronous=False)
 
     # Move the robot 20cm along the relative X-axis of its end-effector
-    #motion = CartesianMotion(Affine([-0.2, 0.0, 0.0]), ReferenceType.Relative)
-    #robot.move(motion)
-    print('Back to the initial pose')
+    motion = CartesianMotion(Affine([-0.0, 0.0, -0.05]), ReferenceType.Relative)
+    robot.move(motion)
+    state = robot.state
+    joint_state = robot.current_joint_state
+    joint_pos = joint_state.position
+    print('Back to the initial pose',joint_state)
 
 
 def check_franka_interface(robot_ip="172.16.0.2"):
@@ -288,5 +299,5 @@ def test_demo():
         robot.move(motion, asynchronous=True)
         time.sleep(1/20)
 
-
 test_franka()
+#test_camera()

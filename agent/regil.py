@@ -949,7 +949,7 @@ class RegAgent:
 
 
         os.makedirs(os.path.dirname(save_dir), exist_ok=True)
-        filename = f"regil_model.pt"
+        filename = f"snapshot.pt"
         path = os.path.join(save_dir, filename)
         torch.save(payload, path)
         print(f"[Model] snapshot saved to {path}")

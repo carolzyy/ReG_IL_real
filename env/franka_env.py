@@ -33,7 +33,8 @@ class Franka():
         self.init_config = JointMotion(
             [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001,
              2.4785007061817375, 0.785398163397],#relative_dynamics_factor=0.05
-        )
+        ) # for reach
+        # 0.000862443 -0.13949 0.00104658 -2.44107 0.00117772 2.34198 0.78529 for insert/peg
         self.gripper_open_init = gripper_open
         self.pos_range = np.array([0.05, 0.05, 0.03])
 
@@ -130,6 +131,7 @@ class RobotEnv(gym.Env):
         max_path_length = 99,
         act_max = [1,1,1],
         act_min = [0,0,0],
+        task_name = None,
         debug_log= '/home/carol/Project/4-RegIC_IL/ReG_IL_real/exp_local/03.17_train/205057/all_retrieve_traj.npz'
 
     ):
@@ -319,6 +321,7 @@ def make(
                    act_max=act_max,
                    act_min=act_min,
                    gripper_open = gripper_open
+                   task_name = task[0]
                    )
 
     return env
