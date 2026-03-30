@@ -24,6 +24,7 @@ def make_agent(obs_spec, action_spec, cfg):
         obs_shape[key] = obs_spec.shape
     cfg.agent.obs_shape = obs_shape
     cfg.agent.action_shape = action_spec.shape
+    print(f'Obs shape is {cfg.agent.obs_shape}')
     return hydra.utils.instantiate(cfg.agent)
 
 def set_seed_everywhere(seed):
@@ -58,7 +59,7 @@ class WorkspaceIL:
 
 
         # create envs
-        self.cfg.suite.task_make_fn.max_episode_len = 200
+        #self.cfg.suite.task_make_fn.max_episode_len = 200
         self.cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
         self.cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
         self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
@@ -77,7 +78,6 @@ class WorkspaceIL:
         self.timer = utils.Timer()
         self._global_step = 0
         self._global_episode = 1
-        self.episode_step = 0
 
 
 
@@ -108,7 +108,6 @@ class WorkspaceIL:
         max_episode_len = len(action)
         print(f'Load demo from {data_path}/{task}.npy, \n'
               f'Demo length : {max_episode_len},\n'
-              f'Obs shape: {obs.shape}'
               )
 
         act_stat = {
@@ -325,7 +324,6 @@ class WorkspaceIL:
                 self.agent.add_buffer(observation, next_observation, done, self.env.input_action, retrive_reward,
                                       retrieve_action,success=success)
                 print(f'EP {self.global_episode}: ended with {success}, Step {episode_step},Episode_reward {episode_reward}')
-                #print("-" * 40)
 
                 
                 observation, done = self.env.reset()

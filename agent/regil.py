@@ -75,9 +75,9 @@ class ReplayBuffer:
         self.reward[self.ptr] = reward
         self.done[self.ptr] = next_obs_dict["goal_achieved"]
 
-        if add and done:
+        if done:
             success = next_obs_dict["goal_achieved"]
-            if success:
+            if success and add:
                 ep_length = self.ptr - self.current_ep_start_index + 1
                 if ep_length + self.expert_size > self.expert_max_size:
                     self.save_expert_npz(f'all_retrieve_traj.npz')
@@ -85,9 +85,8 @@ class ReplayBuffer:
                     add = False
                 else:
                     self.add_expert_episode(self.current_ep_start_index, self.ptr)
-                    #y
-                    #print(f'=================Save expert traj current size{self.expert_size}=========================')
-            self.current_ep_start_index = (self.ptr + 1) % self.max_size
+
+        self.current_ep_start_index = (self.ptr + 1) % self.max_size
 
         self.ptr = (self.ptr + 1) % self.max_size
         self.size = min(self.size + 1, self.max_size)
@@ -367,13 +366,7 @@ class RegAgent:
         self.bc_enable = bc_enable
         self.rl_enable = rl_enable
         self.bc_weight_schedule = bc_weight_schedule
-        if rl_enable:buffer_reset
-            self.policy_freq = policy_freq  # TD3 default, or pass in
-            if not bc_enable:
-                self.bc_weight_schedule = 'linear(0,0,400)'
-        else:
-            self.policy_freq = 1
-            self.bc_weight_schedule = 'linear(1,1,400)'
+        self.policy_freq = policy_freq  # TD3 default, or pass in
 
         if not add_expert:
             expert_ratio = 0

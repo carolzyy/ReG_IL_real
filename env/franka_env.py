@@ -309,6 +309,12 @@ class RobotEnv(gym.Env):
             obs["pixels"] = np.zeros((self.height, self.width, self.n_channels),dtype=np.uint8).transpose(2, 0, 1)
             return obs,False
 
+NUM_STEPS = {
+    "reach": 200,
+    "peg": 175,
+    "pick_bean": 200,
+    "pick_place": 300,
+}
 
 def make(
     use_robot,
@@ -323,7 +329,9 @@ def make(
     task
 ):
     # Convert task_names, which is a list, to a dictionary
-    print(f'Init {task} env')
+
+    max_episode_len = NUM_STEPS[task[0]]
+    print(f'Init {task[0]} env, the max_length is {max_episode_len}')
 
     env = RobotEnv(
                    height=height,
