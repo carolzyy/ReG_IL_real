@@ -20,9 +20,25 @@ class Franka():
         self.action_dim = action_dim #（dx,dy,dz,gripper)
 
         self.n_channels = 3
-        self.gripper_open_status = True
+        self.gripper_open_status = False
         self.motion_dynamics_factor = 0.1
         robot = Robot("172.16.0.2")
+        if 'pick' in task_name:
+            gripper_enable = False
+            print(f'close gripper')
+        else:
+            gripper_enable = True
+
+        if 'peg' in task_name:
+            self.init_config = JointMotion(
+                [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001,
+                 2.4785007061817375, 0.785398163397],  # relative_dynamics_factor=0.05
+            )  # for reach
+        else:
+            self.init_config = JointMotion(
+                [0.000862443, -0.13949, 0.00104658, -2.44107, 0.00117772, 2.34198, 0.78529],  # relative_dynamics_factor=0.05
+            )
+            # 0.000862443 -0.13949 0.00104658 -2.44107 0.00117772 2.34198 0.78529 for insert/peg
         
         self.robot = robot
         gripper = Gripper("172.16.0.2")
@@ -142,11 +158,7 @@ class RobotEnv(gym.Env):
         self.feature_dim = 8
         self.action_dim = 4 #（dx,dy,dz,gripper)
         self.episode_step = 0
-        if 'reach' in task_name:
-            gripper_enable = False
-            print(f'close gripper')
-        else:
-            gripper_enable = True
+
 
         self.n_channels = 3
         self.reward = 0
