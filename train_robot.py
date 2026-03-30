@@ -58,7 +58,7 @@ class WorkspaceIL:
 
 
         # create envs
-        self.cfg.suite.task_make_fn.max_episode_len = 250
+        self.cfg.suite.task_make_fn.max_episode_len = 200
         self.cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
         self.cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
         self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
@@ -273,7 +273,7 @@ class WorkspaceIL:
                     observation,done = self.env.reset()
                     self.agent.buffer_reset(observation)
                     self._global_episode = self._global_episode + 1
-                    self.episode_step = 0
+                    episode_step = 0
                     episode_reward = 0
 
                 else:

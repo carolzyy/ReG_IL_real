@@ -13,7 +13,7 @@ class Franka():
     def __init__(
         self,
         action_dim = 4,
-        gripper_enable = True,
+        #gripper_enable = True,
         task_name='reach'
     ):
         super(Franka, self).__init__()
@@ -24,21 +24,22 @@ class Franka():
         self.motion_dynamics_factor = 0.1
         robot = Robot("172.16.0.2")
         if 'pick' in task_name:
-            gripper_enable = False
-            print(f'close gripper')
-        else:
             gripper_enable = True
+            print(f'Enable gripper')
+        else:
+            gripper_enable = False
 
         if 'peg' in task_name:
-            self.init_config = JointMotion(
-                [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001,
-                 2.4785007061817375, 0.785398163397],  # relative_dynamics_factor=0.05
-            )  # for reach
-        else:
             self.init_config = JointMotion(
                 [0.000862443, -0.13949, 0.00104658, -2.44107, 0.00117772, 2.34198, 0.78529],  # relative_dynamics_factor=0.05
             )
             # 0.000862443 -0.13949 0.00104658 -2.44107 0.00117772 2.34198 0.78529 for insert/peg
+            
+        else:
+            self.init_config = JointMotion(
+                [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001,
+                 2.4785007061817375, 0.785398163397],  # relative_dynamics_factor=0.05
+            )  # for reach
         
         self.robot = robot
         gripper = Gripper("172.16.0.2")
@@ -47,13 +48,10 @@ class Franka():
         self.gripper_width = 0.06  # [m]
         #gripper.move_async(self.gripper_width, self.gripper_speed)
         self.gripper = gripper
-        self.init_config = JointMotion(
-            [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001,
-             2.4785007061817375, 0.785398163397],#relative_dynamics_factor=0.05
-        ) # for reach
+        
         # 0.000862443 -0.13949 0.00104658 -2.44107 0.00117772 2.34198 0.78529 for insert/peg
         self.gripper_enable = gripper_enable
-        self.pos_range = np.array([0.05, 0.05, 0.03])
+        self.pos_range = np.array([0.05, 0.05, 0.0]) #[0.05, 0.05, 0.03] y,x,z
 
     # gripper.asyn_move may lead to problem, so change to move
     def robot_reset(self,random_init=True):
@@ -186,7 +184,7 @@ class RobotEnv(gym.Env):
             cfg.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)  # set resolution and FPS here
             self.pipe.start(cfg)
             self.robot = Franka(
-                gripper_enable = gripper_enable,
+                #gripper_enable = gripper_enable,
                 task_name = task_name
             )
         elif debug:
@@ -330,7 +328,7 @@ def make(
     env = RobotEnv(
                    height=height,
                    width=width,
-                   use_robot=use_robot,
+                   use_robot=True,
                    max_path_length=max_episode_len,
                    act_max=act_max,
                    act_min=act_min,

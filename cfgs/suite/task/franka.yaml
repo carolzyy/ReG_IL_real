@@ -4,12 +4,12 @@ defaults:
 suite: franka
 tasks: 
   # Scene 1
-  - reach
+  #- reach
   - peg
-  - peg-h
+  #- peg_hard
 # Scene 2
-  - pick-bean
-  - pick-cup
-  - pick-place
+  #- pick_bean
+  #- pick_cup
+  #- pick_place
 
 

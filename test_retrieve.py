@@ -90,20 +90,20 @@ def main(cfg):
     #test_retriever()
 
     #3.test work space
+    cfg.save_video = True
+    workspce= W(cfg)
 
     task_idx = 0
     data_path = cfg.suite.data_path
-    task = cfg.suite.task.tasks[task_idx]
-    raw_act_stat, max_episode_len,all_demo = W.preprocess_demo(W,data_path, task)
+    #task = cfg.suite.task.tasks[task_idx]
+    #raw_act_stat, max_episode_len,all_demo = workspce.preprocess_demo(data_path, task)
 
     # create envs
-    cfg.suite.task_make_fn.max_episode_len = max_episode_len + 10
-    cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
-    cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
-    env = hydra.utils.call(cfg.suite.task_make_fn)
-    agent = make_agent(
-        env.observation_spec, env.action_spec, cfg
-    )
+    #cfg.suite.task_make_fn.max_episode_len = 300
+    #cfg.suite.task_make_fn.act_max = cfg.suite.task_make_fn.act_max
+    #cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
+    env = workspce.env
+    agent = workspce.agent
 
     agent.init_demos(all_demo, skip=cfg.suite.demo_skip)
     observation, done = env.reset()

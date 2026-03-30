@@ -367,7 +367,7 @@ class RegAgent:
         self.bc_enable = bc_enable
         self.rl_enable = rl_enable
         self.bc_weight_schedule = bc_weight_schedule
-        if rl_enable:
+        if rl_enable:buffer_reset
             self.policy_freq = policy_freq  # TD3 default, or pass in
             if not bc_enable:
                 self.bc_weight_schedule = 'linear(0,0,400)'

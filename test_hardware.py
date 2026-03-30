@@ -63,10 +63,10 @@ def test_franka():
     speed = 0.05  # [m/s]
     force = 20.0  # [N]
     width = 0.06 #[m]
-    #gripper.move(width, speed)
+    gripper.move(width, speed)
     ready = input('Get the cable ready:')
     time.sleep(0.5)
-    gripper.grasp_async(0.00, speed/2, force, epsilon_outer=1.0)
+    gripper.grasp(0.00, speed/2, force, epsilon_outer=1.0) #grasp_async
 
     #motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
     #robot.move(motion1, asynchronous=False)
