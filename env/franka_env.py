@@ -13,7 +13,8 @@ class Franka():
     def __init__(
         self,
         action_dim = 4,
-        gripper_open = True
+        gripper_enable = True,
+        task_name='reach'
     ):
         super(Franka, self).__init__()
         self.action_dim = action_dim #（dx,dy,dz,gripper)
@@ -35,7 +36,7 @@ class Franka():
              2.4785007061817375, 0.785398163397],#relative_dynamics_factor=0.05
         ) # for reach
         # 0.000862443 -0.13949 0.00104658 -2.44107 0.00117772 2.34198 0.78529 for insert/peg
-        self.gripper_open_init = gripper_open
+        self.gripper_enable = gripper_enable
         self.pos_range = np.array([0.05, 0.05, 0.03])
 
     # gripper.asyn_move may lead to problem, so change to move
@@ -43,7 +44,7 @@ class Franka():
         self.robot.recover_from_errors()
         self.robot.relative_dynamics_factor = 0.05
 
-        if self.gripper_open_init:
+        if self.gripper_enable:
             self.gripper.move(width=self.gripper_width,
                                     speed=self.gripper_speed,
                                     )
@@ -68,8 +69,8 @@ class Franka():
         motion = CartesianMotion(EE_delta, ReferenceType.Relative,
                                  relative_dynamics_factor=self.motion_dynamics_factor)
         self.robot.move(motion, asynchronous=asynchronous)  # async = interupts motion with next command when it arrives
-        if self.gripper_open_init:
-            if ((gripper_act < 0.5) and self.gripper_open_status) or (not self.gripper_open_init):
+        if self.gripper_enable:
+            if ((gripper_act < 0.5) and self.gripper_open_status) or (not self.gripper_enable):
                 self.gripper_close()
             elif (gripper_act > 0.5) and (not self.gripper_open_status):
                 self.gripper_open()
@@ -124,14 +125,13 @@ class Franka():
 class RobotEnv(gym.Env):
     def __init__(
         self,
-        gripper_open,
         height=224,
         width=224,
         use_robot=False,  # True when robot used
         max_path_length = 99,
         act_max = [1,1,1],
         act_min = [0,0,0],
-        task_name = None,
+        task_name = 'reach',
         debug_log= '/home/carol/Project/4-RegIC_IL/ReG_IL_real/exp_local/03.17_train/205057/all_retrieve_traj.npz'
 
     ):
@@ -142,6 +142,11 @@ class RobotEnv(gym.Env):
         self.feature_dim = 8
         self.action_dim = 4 #（dx,dy,dz,gripper)
         self.episode_step = 0
+        if 'reach' in task_name:
+            gripper_enable = False
+            print(f'close gripper')
+        else:
+            gripper_enable = True
 
         self.n_channels = 3
         self.reward = 0
@@ -169,7 +174,8 @@ class RobotEnv(gym.Env):
             cfg.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)  # set resolution and FPS here
             self.pipe.start(cfg)
             self.robot = Franka(
-                gripper_open = gripper_open
+                gripper_enable = gripper_enable,
+                task_name = task_name
             )
         elif debug:
             file_path = debug_log
@@ -308,11 +314,7 @@ def make(
 ):
     # Convert task_names, which is a list, to a dictionary
     print(f'Init {task} env')
-    if 'reach' in task[0]:
-        gripper_open = False
-        print(f'close gripper')
-    else:
-        gripper_open = True
+
     env = RobotEnv(
                    height=height,
                    width=width,
@@ -320,7 +322,6 @@ def make(
                    max_path_length=max_episode_len,
                    act_max=act_max,
                    act_min=act_min,
-                   gripper_open = gripper_open
                    task_name = task[0]
                    )
 

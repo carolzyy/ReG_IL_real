@@ -35,7 +35,7 @@ def data_process(path='',retrieve_key='DINO'):
 
         action = np.append(delta_p, gripper) #dx,dy,dz,gripper
         act_traj.append(action)
-        motion_traj.append(demo[idx]['motion'])
+        #motion_traj.append(demo[idx]['motion'])
 
 
 
@@ -45,9 +45,11 @@ def data_process(path='',retrieve_key='DINO'):
             "pixels": np.array(pixel_traj),
         },
         "actions": np.array(act_traj),
-        "motion": np.array(motion_traj),
+        #"motion": np.array(motion_traj),
     }
-    save_images_to_mp4(image_list = pixel_traj,output_path=Path('/home/carolzhang/Project/RegIL/ReG_IL_real/'), file_name=path.stem+'.mp4')
+    save_images_to_mp4(image_list = pixel_traj,
+                       output_path=Path('/home/carol/Project/4-RegIC_IL/ReG_IL_real/expert_demos/'),
+                       file_name=path.stem+'.mp4')
 
     # 1. Print nested observation shapes
     assert len(feature_traj) == len(act_traj)==len(pixel_traj)
@@ -102,4 +104,4 @@ def save_images_to_mp4(image_list, output_path='./', file_name='output.mp4'):
 #data = np.load('/expert_demos/data_reach.npy', allow_pickle=True).item()
 #print(data.keys())
 
-save_dataset(folder_path='/home/carolzhang/Project/RegIL/ReG_IL_real/dataset')
+save_dataset(folder_path='/media/carol/KINGSTON/RegIL/collect_data/0328')
