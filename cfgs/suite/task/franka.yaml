@@ -5,10 +5,11 @@ suite: franka
 tasks: 
   # Scene 1
   - reach
-  #- put_orange_into_bowl
-  #- put_peach_into_bowl
-
-  # Scene 2
-  #- fridge_put_tea_in_door
+  - peg
+  - peg-h
+# Scene 2
+  - pick-bean
+  - pick-cup
+  - pick-place
 
 
