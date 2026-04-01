@@ -52,7 +52,8 @@ def test_camera_demo(demo_path=None,img_shape=(480,480)):
     # 1. Load the "Shadow" frame from demo
     shadow_img = None
     data = np.load(demo_path,allow_pickle=True).item()
-    obs = data['obs_pixels']
+    print(data.keys())
+    obs = data["observations"]['pixels']
     initial_img = obs[0]
     shadow_img = cv2.resize(initial_img, img_shape)
 
@@ -81,8 +82,8 @@ def test_camera_demo(demo_path=None,img_shape=(480,480)):
             # Convert RealSense frame to numpy array
             live_img = np.asanyarray(color_frame.get_data())
             x_center = int(np.size(live_img, 1) / 2)
-            color_image = color_image[:, x_center - 240:x_center + 240]
-            color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+            color_image = live_img[:, x_center - 240:x_center + 240]
+            #color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
 
             # 2. Apply the Shadow Overlay
             if shadow_img is not None:
@@ -364,3 +365,5 @@ def test_demo():
 
 test_franka()
 #test_camera()
+path = '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/peg_hard.npy'
+test_camera_demo(demo_path=path)

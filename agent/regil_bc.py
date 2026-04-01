@@ -251,12 +251,6 @@ class RegBCAgent:
         """
         # 1. Pre-processing
         obs_tensor = utils.to_torch(obs, device=self.device)
-        if (self.update_cnt < self.replay_warmup) and (not eval_mode):
-            if getattr(self, 'retrieve', False):
-                action = self.retrieve_context['retrieve_action']
-                return action
-        elif (not eval_mode):
-            self.retrieve = False
 
         with torch.no_grad():
             # 2. Feature Encoding

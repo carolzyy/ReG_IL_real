@@ -131,13 +131,14 @@ class WorkspaceIL:
 
 
 
-    def eval(self,round,save_traj = False):
+    def eval(self,round,save_traj = True):
         self.agent.train(False)
         num_eval_episodes = 2
         episode = 0
         success_list = []
         traj = []
         eval_until_episode = utils.Until(num_eval_episodes) #
+        robot_state = None
         while eval_until_episode(episode):
             print(
                 f'======================Start eval SCE{round}-EP{episode + 1}/{num_eval_episodes}==============================')
@@ -146,6 +147,7 @@ class WorkspaceIL:
 
             #self.agent.buffer_reset(observation)
             step = 0
+            
             self.video_recorder.init(observation['render'], enabled=True)
 
             # plot obs with cv2
@@ -163,10 +165,11 @@ class WorkspaceIL:
                             {
                                 'observation': observation,
                                 'action': action,
+                                'robot_state':robot_state
                             }
                         )
 
-                    next_observation, done = self.env.step(action.squeeze(),return_state=True)
+                    next_observation, done,robot_state = self.env.step(action.squeeze(),return_state=True)
                     time.sleep(0.1)
                     self.video_recorder.record(next_observation['render'])
                     #self.agent.update_obs_and_retrieve(next_observation)
@@ -219,11 +222,11 @@ class WorkspaceIL:
 def main():
     eval_list = [
         {"name": "BC",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.26_train/bc/144140/.hydra/config.yaml"},
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/bc/.hydra/config.yaml"},
          {"name": "ReG_BC",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.26_train/reg_bc/155845/.hydra/config.yaml"},
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/reg_bc/.hydra/config.yaml"},
         {"name": "BAKU",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.26_train/baku/145857/.hydra/config.yaml"},
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/baku/.hydra/config.yaml"},
         {"name": "ReGIL",
          "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.26_train/regil/164329/.hydra/config.yaml"},
     ]

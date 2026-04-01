@@ -239,14 +239,15 @@ class RobotEnv(gym.Env):
         else:
             self.robot.robot_act(action * 5,)
             obs = self.get_frame()
-            if return_state:
-                obs[f"robot_state"] = self.robot.robot.state
+            
             #debug for the image
             #save_path = f'/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/step_{self.episode_step}.png'
             #cv2.imwrite(save_path, cv2.cvtColor(obs["pixels"], cv2.COLOR_RGB2BGR))
         #print(f'Excuated action is {action}')
 
         self.episode_step += 1
+        if return_state:
+                return obs, done, self.robot.robot.state
 
         return obs, done #, None #obs, reward, done, info
 
