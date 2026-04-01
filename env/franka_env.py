@@ -215,7 +215,7 @@ class RobotEnv(gym.Env):
         return np.concatenate([action_xyz, action_gripper], axis=-1)
 
 
-    def step(self, action):
+    def step(self, action,return_state = False):
         #print(f"current {self.episode_step}th action is: ", action)
         obs = {}
         if self.episode_step == self.max_path_length:
@@ -237,6 +237,8 @@ class RobotEnv(gym.Env):
         else:
             self.robot.robot_act(action * 5,)
             obs = self.get_frame()
+            if return_state:
+                obs[f"robot_state"] = self.robot.robot.state
             #debug for the image
             #save_path = f'/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/step_{self.episode_step}.png'
             #cv2.imwrite(save_path, cv2.cvtColor(obs["pixels"], cv2.COLOR_RGB2BGR))
@@ -255,7 +257,7 @@ class RobotEnv(gym.Env):
 
         return done,mode
     
-    def get_observation(self):
+    def get_observation(self,):
         obs = {}
         if self.robot is None:
             print(f"no robot,")
@@ -314,6 +316,7 @@ NUM_STEPS = {
     "peg": 175,
     "pick_bean": 200,
     "pick_place": 300,
+    "peg_hard": 300,
 }
 
 def make(
@@ -336,7 +339,7 @@ def make(
     env = RobotEnv(
                    height=height,
                    width=width,
-                   use_robot=True,
+                   use_robot=use_robot,
                    max_path_length=max_episode_len,
                    act_max=act_max,
                    act_min=act_min,

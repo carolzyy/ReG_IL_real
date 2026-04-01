@@ -45,7 +45,7 @@ class WorkspaceIL:
         raw_act_stat,_,demo = self.preprocess_demo(data_path,task)
         self.all_demo = buff
 
-        self.cfg.suite.num_train_steps = 100000
+        self.cfg.suite.num_train_steps = 10000
         self.cfg.suite.save_every_steps = self.cfg.suite.eval_every_steps
         self.cfg.suite.task_make_fn.use_robot = False
 
@@ -113,7 +113,7 @@ class WorkspaceIL:
         return act_stat,max_episode_len,all_demo
 
     def preprocess_buff(self,task):
-        data_path = f'/home/carol/Project/4-RegIC_IL/ReG_IL_real/expert_demos/{task}_expert_buffer.npz'
+        data_path = f'/home/carol/Project/4-RegIC_IL/ReG_IL_real/expert_demos/retrieve_buff/{task}_expert_buffer.npz'
         data = np.load(data_path, allow_pickle=True)
         action = data['action_policy']
         obs = data['obs_pixels']

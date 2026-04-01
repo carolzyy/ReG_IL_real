@@ -1,7 +1,10 @@
 import numpy as np
-
+from video import VideoRecorder
+from pathlib import Path
+out_path = Path('/home/carol/Project/4-RegIC_IL/ReG_IL_real/train_video')
+video_recorder = VideoRecorder(out_path)
 # Load the .npz file
-file_path = '/home/carol/Project/4-RegIC_IL/ReG_IL_real/exp_local/03.17_train/205057/all_retrieve_traj.npz'
+file_path = '/media/carol/KINGSTON/RegIL/logs/03.30_train/regil/214830/expert_buffer.npz'
 data = np.load(file_path)
 
 # 1. List all available keys in the file
@@ -19,9 +22,12 @@ for key in keys:
     if np.issubdtype(array.dtype, np.number):
         print(f" - Min: {np.min(array)}")
         print(f" - Max: {np.max(array)}")
-        print(f" - Mean: {np.mean(array)}")
 reward = data['reward']
 done = data['done']
 obs = data['obs_pixels']
+video_recorder.init(obs[0])
+for img in obs[1:]:
+    video_recorder.record(img)
+video_recorder.save(f'peg_in.mp4')
 # Close the file if you are done
 data.close()

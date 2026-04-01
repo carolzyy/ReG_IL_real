@@ -67,7 +67,7 @@ class WorkspaceIL:
 
         # create logger
         self.logger = Logger(self.work_dir, use_tb=self.cfg.use_tb)
-        self.cfg.suite.num_train_steps = 100000
+        self.cfg.suite.num_train_steps = 11000
         self.cfg.suite.save_every_steps = self.cfg.suite.eval_every_steps
         self.cfg.suite.task_make_fn.use_robot = False
 

@@ -1,10 +1,13 @@
 from franky import *
 import time
+import cv2
+import pyrealsense2 as rs
+import numpy as np
+import cv2
+
 def test_camera():
     print("-----Testing the hardware of RealSense-----------")
-    import pyrealsense2 as rs
-    import numpy as np
-    import cv2
+
 
     pipeline = rs.pipeline()
     config = rs.config()
@@ -36,6 +39,66 @@ def test_camera():
         print(f"Error: {e}")
         print("\nPRO-TIP: Check if the camera is in a Blue USB 3.0 port.")
 
+    finally:
+        if active_pipeline:
+            pipeline.stop()
+        cv2.destroyAllWindows()
+
+
+def test_camera_demo(demo_path=None,img_shape=(480,480)):
+    print("-----Testing RealSense with Demo Shadow-----------")
+
+
+    # 1. Load the "Shadow" frame from demo
+    shadow_img = None
+    data = np.load(demo_path,allow_pickle=True).item()
+    obs = data['obs_pixels']
+    initial_img = obs[0]
+    shadow_img = cv2.resize(initial_img, img_shape)
+
+
+    pipeline = rs.pipeline()
+    config = rs.config()
+    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 15)
+
+    print("Attempting to start RealSense...")
+    active_pipeline = False
+
+    try:
+        pipeline.start(config)
+        active_pipeline = True
+
+        print("\nCONTROLS:")
+        print(" - Press 'q' to quit")
+        print(" - Align your camera until the live image matches the shadow.")
+
+        while True:
+            frames = pipeline.wait_for_frames()
+            color_frame = frames.get_color_frame()
+            if not color_frame:
+                continue
+
+            # Convert RealSense frame to numpy array
+            live_img = np.asanyarray(color_frame.get_data())
+            x_center = int(np.size(live_img, 1) / 2)
+            color_image = color_image[:, x_center - 240:x_center + 240]
+            color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+
+            # 2. Apply the Shadow Overlay
+            if shadow_img is not None:
+                # cv2.addWeighted(src1, alpha, src2, beta, gamma)
+                # alpha = transparency of live feed; beta = transparency of shadow
+                display_img = cv2.addWeighted(color_image, 0.6, shadow_img, 0.4, 0)
+            else:
+                display_img = live_img
+
+            cv2.imshow('RealSense Alignment (Shadow Mode)', display_img)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+    except Exception as e:
+        print(f"Error: {e}")
     finally:
         if active_pipeline:
             pipeline.stop()

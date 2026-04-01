@@ -91,7 +91,7 @@ class WorkspaceIL:
                  env):
 
 
-        self.work_dir = work_dir/cfg.agent.name
+        self.work_dir = work_dir
         print(f"workspace: {self.work_dir}")
         self.env = env
 
@@ -131,11 +131,12 @@ class WorkspaceIL:
 
 
 
-    def eval(self,round):
+    def eval(self,round,save_traj = False):
         self.agent.train(False)
         num_eval_episodes = 2
         episode = 0
         success_list = []
+        traj = []
         eval_until_episode = utils.Until(num_eval_episodes) #
         while eval_until_episode(episode):
             print(
@@ -145,7 +146,6 @@ class WorkspaceIL:
 
             #self.agent.buffer_reset(observation)
             step = 0
-            total_reward = 0
             self.video_recorder.init(observation['render'], enabled=True)
 
             # plot obs with cv2
@@ -159,8 +159,14 @@ class WorkspaceIL:
                             step = step,
                             global_step = step,
                         )
+                        traj.append(
+                            {
+                                'observation': observation,
+                                'action': action,
+                            }
+                        )
 
-                    next_observation, done = self.env.step(action.squeeze())
+                    next_observation, done = self.env.step(action.squeeze(),return_state=True)
                     time.sleep(0.1)
                     self.video_recorder.record(next_observation['render'])
                     #self.agent.update_obs_and_retrieve(next_observation)
@@ -189,6 +195,8 @@ class WorkspaceIL:
 
             episode += 1
             self.video_recorder.save(f"eval_{round}_{episode}.mp4")
+            if save_traj:
+                np.save(self.work_dir/f"eval_{round}_{episode}.npy", np.array(traj))
 
         with self.logger.log_and_dump_ctx(self.global_step, ty="eval") as log:
             log("episode", episode)
@@ -233,7 +241,7 @@ def main():
                 env,max_len = make_env(cfg,work_dir)
             cfg.agent.max_episode_len = max_len
             work_dir_agent = work_dir/item['name']
-            workspace = WorkspaceIL(cfg=cfg,env=env,work_dir=work_dir)
+            workspace = WorkspaceIL(cfg=cfg,env=env,work_dir=work_dir_agent)
             snapshots = {}
             model_path = item['config'].split('.hydra')[0]+f'snapshot/snapshot.pt'
             bc_snapshot = Path(model_path)

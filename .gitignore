@@ -1,0 +1,13 @@
+# IDE settings
+.idea/
+
+# Python bytecode
+__pycache__/
+**/__pycache__/
+
+# Local experiment data and demos
+exp_local/
+expert_demos/
+
+# Large media files
+train_video/

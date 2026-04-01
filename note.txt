@@ -13,3 +13,11 @@ gripper【-1】 for drawer_open, {0,0.8} for hammer
 command on the franka desktop
 source /home/carolzhang/miniconda3/bin/activate
 conda activate franka
+
+reach dataset is reach2
+
+ROT：
+random initialization only for 20 trails
+6k env steps with 2 hours training
+
+now random initial with +-[0.05,0.05,0.03]
