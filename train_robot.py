@@ -59,7 +59,7 @@ class WorkspaceIL:
 
 
         # create envs
-        #self.cfg.suite.task_make_fn.max_episode_len = 200
+        self.cfg.suite.task_make_fn.max_episode_len = 200
         self.cfg.suite.task_make_fn.act_max = raw_act_stat['max'].tolist()
         self.cfg.suite.task_make_fn.act_min = raw_act_stat['min'].tolist()
         self.env = hydra.utils.call(self.cfg.suite.task_make_fn)
@@ -94,6 +94,7 @@ class WorkspaceIL:
         return self.global_step * self.cfg.suite.action_repeat
 
     def preprocess_demo(self,data_path,task):
+        print(f'Data path is {data_path}/{task}.npy')
         data = np.load(f'{data_path}/{task}.npy',allow_pickle=True).item()
 
         
@@ -237,7 +238,7 @@ class WorkspaceIL:
                 with torch.no_grad():
                     policy_action = self.agent.act(
                         obs = observation.copy(),
-                        #retrieve_only=True
+                        step = self.global_step
                                             )
 
                 next_observation,done = self.env.step(policy_action)

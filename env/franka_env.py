@@ -63,8 +63,10 @@ class Franka():
                                     speed=self.gripper_speed,
                                     )
         else:
-            self.gripper.move(width=0.005,
-                              speed=self.gripper_speed,
+            self.gripper.grasp_async(0.00,
+                              self.gripper_speed/2,
+                              self.gripper_force,
+                              epsilon_outer=1.0
                               )
         time.sleep(0.5)
 
@@ -313,10 +315,10 @@ class RobotEnv(gym.Env):
 
 NUM_STEPS = {
     "reach": 200,
-    "peg": 175,
+    "peg_hard": 150,
     "pick_bean": 200,
     "pick_place": 300,
-    "peg_hard": 300,
+    "pick_cup": 175,
 }
 
 def make(

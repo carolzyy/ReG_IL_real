@@ -86,7 +86,7 @@ class ReplayBuffer:
                 else:
                     self.add_expert_episode(self.current_ep_start_index, self.ptr)
 
-        self.current_ep_start_index = (self.ptr + 1) % self.max_size
+            self.current_ep_start_index = (self.ptr + 1) % self.max_size
 
         self.ptr = (self.ptr + 1) % self.max_size
         self.size = min(self.size + 1, self.max_size)
@@ -542,7 +542,7 @@ class RegAgent:
 
 
 
-    def act(self, obs,retrieve_only=False, eval_mode=False,**kwargs):
+    def act(self, obs,step,retrieve_only=False, eval_mode=False,**kwargs):
         """
         Selects an action using a Q-filter for both evaluation and training,
         optimized with torch.no_grad() for performance.
@@ -553,10 +553,10 @@ class RegAgent:
             action = self.retrieve_context['retrieve_action']
             return action
 
-        if (self.update_cnt < self.replay_warmup) and (not eval_mode):
+        if (step < self.replay_warmup) and (not eval_mode):
             action = self.retrieve_context['retrieve_action']
             return action
-        elif self.update_cnt == self.replay_warmup:
+        elif step == self.replay_warmup:
             self.retrieve = False
             self.buff.save_expert_npz()
             print("============================Replay warmup finished==============================")
