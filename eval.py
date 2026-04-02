@@ -144,8 +144,6 @@ class WorkspaceIL:
                 f'======================Start eval SCE{round}-EP{episode + 1}/{num_eval_episodes}==============================')
 
             observation, done = self.env.reset()
-
-            #self.agent.buffer_reset(observation)
             step = 0
             
             self.video_recorder.init(observation['render'], enabled=True)
@@ -199,7 +197,7 @@ class WorkspaceIL:
             episode += 1
             self.video_recorder.save(f"eval_{round}_{episode}.mp4")
             if save_traj:
-                np.save(self.work_dir/f"eval_{round}_{episode}.npy", np.array(traj))
+                np.save(self.work_dir/f"eval_{round}_{episode}_{success}.npy", np.array(traj))
 
         with self.logger.log_and_dump_ctx(self.global_step, ty="eval") as log:
             log("episode", episode)

@@ -338,13 +338,7 @@ class RegAgent:
         self.stddev_clip = stddev_clip
         self.stddev = utils.schedule(self.stddev_sch,1)
         self.bc_type = bc_type
-        if self.bc_type == 'lamda':
-            self.lamda = lamda
-            self.q_filter = False
-        elif self.bc_type == 'q_filter':
-            self.q_filter = True
-            self.lamda = 0
-        elif self.bc_type == 'linear':
+        if self.bc_type == 'linear':
             self.q_filter = False
             self.lamda = 0
 
@@ -360,7 +354,7 @@ class RegAgent:
 
         self.enc_update = enc_update
         if self.enc_update>0:
-            self.enc_update = 1 if bc_enable else 2
+            self.enc_update = 1
         self.enc_up_critic = enc_up_critic
 
         self.bc_enable = bc_enable
