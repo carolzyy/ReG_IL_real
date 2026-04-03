@@ -148,6 +148,7 @@ class RobotEnv(gym.Env):
         act_max = [1,1,1],
         act_min = [0,0,0],
         task_name = 'reach',
+        eval = False,
         debug_log= '/home/carol/Project/4-RegIC_IL/ReG_IL_real/exp_local/03.17_train/205057/all_retrieve_traj.npz'
 
     ):
@@ -158,6 +159,7 @@ class RobotEnv(gym.Env):
         self.feature_dim = 8
         self.action_dim = 4 #（dx,dy,dz,gripper)
         self.episode_step = 0
+        self.eval = eval
 
 
         self.n_channels = 3
@@ -217,7 +219,7 @@ class RobotEnv(gym.Env):
         return np.concatenate([action_xyz, action_gripper], axis=-1)
 
 
-    def step(self, action,return_state = False):
+    def step(self, action):
         #print(f"current {self.episode_step}th action is: ", action)
         obs = {}
         if self.episode_step == self.max_path_length:
@@ -246,7 +248,7 @@ class RobotEnv(gym.Env):
         #print(f'Excuated action is {action}')
 
         self.episode_step += 1
-        if return_state:
+        if self.eval:
                 return obs, done, self.robot.robot.state
 
         return obs, done #, None #obs, reward, done, info
@@ -276,8 +278,28 @@ class RobotEnv(gym.Env):
     OpenCV Display (imshow) Needs BGR. need be cv2.COLOR_RGB2BGR.
     '''
     def get_frame(self):
-        frame = self.pipe.wait_for_frames()
-        color_frame = frame.get_color_frame()
+        try:
+            # 1. 尝试正常拿图 (50ms 超时)
+            frames = self.pipe.wait_for_frames(timeout_ms=50)
+            color_frame = frames.get_color_frame()
+
+            if not color_frame:
+                raise RuntimeError("Empty color frame")  # 触发下方重启逻辑
+        except RuntimeError as e:
+            print(f"!!! RealSense Error: {e}. Attempting hardware restart... !!!")
+
+            # 2. 执行重启 Pipeline 的逻辑
+            self.restart_realsense()
+
+            # 3. 重启后再次尝试拿图
+            try:
+                # 重启后第一帧通常需要一点时间稳定，给长一点时间
+                frames = self.pipe.wait_for_frames(timeout_ms=1000)
+                color_frame = frames.get_color_frame()
+            except:
+                print("Restart failed to capture frame")
+                return None
+
         color_image = np.asanyarray(color_frame.get_data())
         x_center = int(np.size(color_image, 1) / 2)
         color_image = color_image[:, x_center - 240:x_center + 240] #480,480
@@ -286,11 +308,45 @@ class RobotEnv(gym.Env):
         # cv2 imshow uses bgr channel ordering, but if your model was trained on rgb you would need to switch channel order here
 
         color_image = color_image.transpose(2, 0, 1)
+        if self.eval:
+            return {
+                'pixels': color_image.copy(),
+                'render': big_image.copy()
+            }
+        else:
+            return {
+                'pixels': color_image.copy(),
+            }
 
-        return {
-            'pixels': color_image.copy(),
-            'render': big_image.copy()
-        }
+    def restart_realsense(self):
+        """ 彻底清理并重新初始化 RealSense """
+        try:
+            # 1. 停止当前 Pipeline
+            self.pipe.stop()
+            time.sleep(0.5)  # 给 USB 总线喘息时间
+        except:
+            pass
+
+        try:
+            # 2. 硬件级别重置 (Hardware Reset)
+            # 这一步非常管用，相当于物理拔插
+            ctx = rs.context()
+            devices = ctx.query_devices()
+            if len(devices) > 0:
+                devices[0].hardware_reset()
+                time.sleep(2.0)  # 硬件重启需要较长时间
+
+            # 3. 重新配置并启动
+            self.pipe = rs.pipeline()
+            cfg = rs.config()
+            cfg.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+            self.pipe.start(cfg)
+            print("RealSense Pipeline Restarted Successfully.")
+
+        except Exception as e:
+            print(f"Critical: Failed to restart RealSense: {e}")
+
+
 
     def reset(self):  # currently same positions, with gripper opening
         self.episode_step = 0
