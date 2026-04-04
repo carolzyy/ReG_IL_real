@@ -57,7 +57,7 @@ class Franka():
     def robot_reset(self,random_init=True):
         self.robot.recover_from_errors()
         self.robot.relative_dynamics_factor = 0.05
-
+        '''
         if self.gripper_enable:
             self.gripper.move(width=self.gripper_width,
                                     speed=self.gripper_speed,
@@ -69,6 +69,7 @@ class Franka():
                               epsilon_outer=1.0
                               )
         time.sleep(0.5)
+        '''
 
         self.robot.move(self.init_config)
         if random_init:
@@ -80,12 +81,13 @@ class Franka():
 
     def robot_act(self,action,asynchronous=True):
         EE_delta = Affine(action[0:3])
-        gripper_act = action[-1]
+
         # A linear motion in Cartesian space relative to the initial position
         motion = CartesianMotion(EE_delta, ReferenceType.Relative,
                                  relative_dynamics_factor=self.motion_dynamics_factor)
         self.robot.move(motion, asynchronous=asynchronous)  # async = interupts motion with next command when it arrives
         if self.gripper_enable:
+            gripper_act = action[-1]
             if ((gripper_act < 0.5) and self.gripper_open_status) or (not self.gripper_enable):
                 self.gripper_close()
             elif (gripper_act > 0.5) and (not self.gripper_open_status):
@@ -133,9 +135,10 @@ class Franka():
             relative_dynamics_factor=0.1
         )
 
-        print(f"Randomizing position by: {random_offset}")
         self.robot.move(motion,asynchronous=False)
-        time.sleep(0.2)
+        print(f"Randomized position by: {random_offset}")
+        time.sleep(0.5)
+
 
 
 class RobotEnv(gym.Env):
