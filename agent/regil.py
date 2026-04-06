@@ -368,7 +368,12 @@ class RegAgent:
 
         # actor parameters
         self._act_dim = action_shape[0]
-        self.buff = ReplayBuffer(obs_shape, action_shape[0],expert_ratio=expert_ratio,batch_size=batch_size, expert_size = self.replay_warmup)
+        if retrieve:
+            expert_size = self.replay_warmup
+        else:
+            expert_size = 100
+
+        self.buff = ReplayBuffer(obs_shape, action_shape[0],expert_ratio=expert_ratio,batch_size=batch_size, expert_size = expert_size)
 
         self.re_history_len = re_history_len
         self.retrieve_len = retrieve_len
@@ -484,9 +489,12 @@ class RegAgent:
             "actions": lambda x: (x - self.stats["actions"]["min"])
                                  / (self.stats["actions"]["max"] - self.stats["actions"]["min"] + 1e-5),# useless
         }
-        print(f'BC regularization: {self.bc_enable}, \n'
-              f'RL regularization: {self.rl_enable},\n'
-              f'Add experience: {self.add_expert}')
+        print(
+
+              f'Add experience: {self.add_expert} \n'
+              f'Expert buffer size: {expert_size}, \n'
+              #f'RL regularization: {self.rl_enable},\n'
+              )
 
         self.train()
 
@@ -547,7 +555,7 @@ class RegAgent:
             action = self.retrieve_context['retrieve_action']
             return action
 
-        if (step < self.replay_warmup) and (not eval_mode):
+        if (step < self.replay_warmup) and (not eval_mode) and self.retrieve:
             action = self.retrieve_context['retrieve_action']
             return action
         elif step == self.replay_warmup:
@@ -936,7 +944,7 @@ class RegAgent:
 
 
         os.makedirs(os.path.dirname(save_dir), exist_ok=True)
-        filename = f"snapshot.pt"
+        filename = f"snapshot_{self.update_cnt}.pt"
         path = os.path.join(save_dir, filename)
         torch.save(payload, path)
         print(f"[Model] snapshot saved to {path}")

@@ -34,4 +34,9 @@ class VideoRecorder:
         if self.enabled:
             path = self.save_dir / file_name
             imageio.mimsave(str(path), self.frames, fps=self.fps)
+            # --- 关键修复：彻底释放内存 ---
+            self.frames.clear() 
+            del self.frames
+            self.frames = []
+            
         self.enabled = False

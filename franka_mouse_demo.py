@@ -36,7 +36,7 @@ motion_dynamics_factor = 0.05 #multiplies the above factor during carteisan moti
 gripper = Gripper("172.16.0.2")
 speed = 0.05  # [m/s]
 force = 20.0  # [N]
-width = 0.06 #[m]
+width = 0.08 #[m]
 
 pipe = rs.pipeline()
 cfg = rs.config()
@@ -58,7 +58,11 @@ episode = []
 
 robot.recover_from_errors()
 
-init_config = JointMotion([0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375, 0.785398163397]) #0.0 > 0.001 to avoid errors for reach
+init_config = JointMotion(
+    #[0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375, 0.785398163397]
+     [-1.28337,1.51706,1.31288,-1.42891,0.0334399,1.80664,0.584724]
+     #[-1.283, 1.100, 1.313, -1.950, 0.033, 1.650, 0.585]
+    ) #0.0 > 0.001 to avoid errors for reach
 #init_config = JointMotion([0.000862443, -0.13949, 0.00104658, -2.44107, 0.00117772, 2.34198, 0.78529]) #peg-medium
 robot.move(init_config)
 
@@ -90,11 +94,11 @@ if mouse:
         noise = np.random.normal(0,0.1,6)
 
         if not state.buttons[0] and state.buttons[1] and gripper_open:
-            gripper.grasp_async(0.0, speed, force, epsilon_outer=1.0)
+            #gripper.grasp_async(0.0, speed, force, epsilon_outer=1.0)
             gripper_open = False
         elif state.buttons[0] and not state.buttons[1] and not gripper_open:
             #gripper.open_async(speed)
-            gripper.move_async(width, speed)
+            #gripper.move_async(width, speed)
             gripper_open = True
         elif state.buttons[0] and state.buttons[1]:
             recording = False

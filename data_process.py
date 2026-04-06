@@ -48,7 +48,7 @@ def data_process(path='',retrieve_key='DINO'):
         #"motion": np.array(motion_traj),
     }
     save_images_to_mp4(image_list = pixel_traj,
-                       output_path=Path('/home/carol/Project/4-RegIC_IL/ReG_IL_real/expert_demos/'),
+                       output_path=Path('/home/carolzhang/Project/RegIL/ReG_IL_real/dataset/dataset/'),
                        file_name=path.stem+'.mp4')
 
     # 1. Print nested observation shapes
@@ -66,7 +66,7 @@ def get_action_matrix(state1,state2):
 
 def save_dataset(folder_path):
     base_dir = Path(folder_path)
-    for file_path in base_dir.glob('raw_*.npy'):
+    for file_path in base_dir.glob('raw_open*.npy'):
         print(f"Processing: {file_path.name}")
         processed_data = data_process(file_path)
         new_filename = f"dataset_{file_path.name}"
@@ -104,4 +104,4 @@ def save_images_to_mp4(image_list, output_path='./', file_name='output.mp4'):
 #data = np.load('/expert_demos/data_reach.npy', allow_pickle=True).item()
 #print(data.keys())
 
-save_dataset(folder_path='/media/carol/KINGSTON/RegIL/collect_data/0328')
+save_dataset(folder_path='/home/carolzhang/Project/RegIL/ReG_IL_real/dataset/')

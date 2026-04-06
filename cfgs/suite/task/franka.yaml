@@ -5,8 +5,8 @@ suite: franka
 tasks: 
   # Scene 1
   #- reach
-  #- peg
-  - peg_hard
+  - open
+  #- peg_hard
 # Scene 2
   #- pick_bean
   #- pick_cup

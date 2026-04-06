@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - suite: franka
-  - agent: baku #bc regil baku #
+  - agent: regil #bc regil baku #
 
 
 # Root Dir

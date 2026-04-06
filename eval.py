@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-
+import os
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = "max_split_size_mb:64"
 import warnings
 import time
 from pathlib import Path
@@ -14,8 +15,9 @@ import utils.net_utils as utils
 from logger import Logger
 from video import VideoRecorder
 from omegaconf import OmegaConf
+import gc
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = False
 
 
 def make_agent(obs_spec, action_spec, cfg):
@@ -33,6 +35,7 @@ def make_env(cfg,work_dir):
     raw_act_stat, max_episode_len, _ = preprocess_demo(work_dir,data_path, task,)
 
     cfg.suite.task_make_fn.use_robot = True
+    cfg.suite.task_make_fn.eval = True
 
     # create envs
     max_episode_len = 250
@@ -133,7 +136,7 @@ class WorkspaceIL:
 
     def eval(self,round,save_traj = True):
         self.agent.train(False)
-        num_eval_episodes = 2
+        num_eval_episodes =1
         episode = 0
         success_list = []
         traj = []
@@ -167,7 +170,7 @@ class WorkspaceIL:
                             }
                         )
 
-                    next_observation, done,robot_state = self.env.step(action.squeeze(),return_state=True)
+                    next_observation, done,robot_state = self.env.step(action.squeeze())
                     time.sleep(0.1)
                     self.video_recorder.record(next_observation['render'])
                     #self.agent.update_obs_and_retrieve(next_observation)
@@ -223,15 +226,15 @@ def main():
          "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/bc/.hydra/config.yaml"},
          {"name": "ReG_BC",
          "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/reg_bc/.hydra/config.yaml"},
-        {"name": "BAKU",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/baku/.hydra/config.yaml"},
+        {"name": "BC_RL",
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/bc_rl/.hydra/config.yaml"},
         {"name": "ReGIL",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/exp_local/03.26_train/regil/164329/.hydra/config.yaml"},
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/regil/.hydra/config.yaml"},
     ]
     timestamp = datetime.now().strftime("%m%d%H%M")
     work_dir = Path.cwd() / f"exp_local/{timestamp}_eval"
     env = None
-    scene_num = 5
+    scene_num = 10
 
     for scene_id in range(scene_num):
         for item in eval_list:
@@ -253,6 +256,13 @@ def main():
             workspace.load_snapshot(snapshots)
             print(f"\n" + "=" * 30+f"EVALUATING: {item['name']}"+ "=" * 30)
             workspace.eval(scene_id)
+
+            del workspace.agent
+            del workspace
+        
+            gc.collect()          # 清理 Python 内存计数
+            torch.cuda.empty_cache() # 强制释放显存回显卡驱动
+
 
 
 

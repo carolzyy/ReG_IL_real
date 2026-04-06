@@ -299,7 +299,7 @@ class WorkspaceIL:
 
 
                 # save snapshot
-                if save_every_step(self.global_step):
+                if save_every_step(self.global_step) and self.global_step>9999:
                     self.save_snapshot()
                 self._global_step += 1
 

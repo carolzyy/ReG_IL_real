@@ -30,7 +30,9 @@ def test_camera():
                 continue
 
             img = np.asanyarray(color_frame.get_data())
-            cv2.imshow('RealSense RGB', img)
+            x_center = int(np.size(img, 1) / 2)
+            color_image = img[:, x_center - 240:x_center + 240]
+            cv2.imshow('RealSense RGB', color_image)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -89,7 +91,7 @@ def test_camera_demo(demo_path=None,img_shape=(480,480)):
             if shadow_img is not None:
                 # cv2.addWeighted(src1, alpha, src2, beta, gamma)
                 # alpha = transparency of live feed; beta = transparency of shadow
-                display_img = cv2.addWeighted(color_image, 0.6, shadow_img, 0.4, 0)
+                display_img = cv2.addWeighted(color_image, 0.5, shadow_img, 0.5, 0)
             else:
                 display_img = live_img
 
@@ -103,6 +105,7 @@ def test_camera_demo(demo_path=None,img_shape=(480,480)):
     finally:
         if active_pipeline:
             pipeline.stop()
+            time.sleep(0.5)
         cv2.destroyAllWindows()
 
 
@@ -119,6 +122,12 @@ def test_franka():
 
     init_config = JointMotion([0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375,
                                0.785398163397])  # 0.0 > 0.001 to avoid errors
+    init_config = JointMotion(
+                [0.000862443, -0.13949, 0.00104658, -2.44107, 0.00117772, 2.34198, 0.78529],  # relative_dynamics_factor=0.05 peg-in hard
+           )
+    init_config = JointMotion(
+               [-1.28337,1.51706,1.31288,-1.42891,0.0334399,1.80664,0.584724]
+           )
     robot.move(init_config)
     # In franky/libfranka, RobotMode.UserStopped is typically 4
     #state = robot.state
@@ -126,28 +135,28 @@ def test_franka():
     gripper = Gripper("172.16.0.2")
     speed = 0.05  # [m/s]
     force = 20.0  # [N]
-    width = 0.06 #[m]
-    gripper.move(width, speed)
-    ready = input('Get the cable ready:')
-    time.sleep(0.5)
-    gripper.grasp(0.00, speed/2, force, epsilon_outer=1.0) #grasp_async
+    width = 0.03 #[m]
+    #gripper.move(width, speed)
+    #ready = input('Get the cable ready:')
+    #time.sleep(0.5)
+    #gripper.grasp(0.00, speed/2, force, epsilon_outer=1.0) #grasp_async
 
     #motion1 = CartesianMotion(Affine([0.2, 0.0, 0.0]), ReferenceType.Relative)
     #robot.move(motion1, asynchronous=False)
 
-    #time.sleep(0.5)
+    time.sleep(0.5)
     # Note that, similar to reactions, when preempting active motions with new motions, the
     # control mode cannot change. Hence, we cannot use, e.g., a JointMotion here.
     #motion2 = CartesianMotion(Affine([-0.2, 0.0, 0.0]), ReferenceType.Relative)
     #robot.move(motion2, asynchronous=False)
 
     # Move the robot 20cm along the relative X-axis of its end-effector
-    motion = CartesianMotion(Affine([-0.0, 0.0, -0.05]), ReferenceType.Relative)
-    robot.move(motion)
+    #motion = CartesianMotion(Affine([-0.0, 0.0, -0.025]), ReferenceType.Relative)
+    #robot.move(motion)
     state = robot.state
-    joint_state = robot.current_joint_state
+    joint_state = robot.current_joint_state #position=[-0.479065 0.925319 0.0381373 -1.2353 1.2652 1.21542 0.278162]
     joint_pos = joint_state.position
-    print('Back to the initial pose',joint_state)
+    print('Back to the initial pose',joint_state) #$ q = [0.7071, 0, 0, 0.7071]$
 
 
 def check_franka_interface(robot_ip="172.16.0.2"):
@@ -363,7 +372,7 @@ def test_demo():
         robot.move(motion, asynchronous=True)
         time.sleep(1/20)
 
-test_franka()
+test_franka() 
 #test_camera()
-path = '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/peg_hard.npy'
+path = '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/open.npy'
 test_camera_demo(demo_path=path)

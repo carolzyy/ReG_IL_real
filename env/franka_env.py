@@ -32,8 +32,14 @@ class Franka():
         if 'peg' in task_name:
             self.init_config = JointMotion(
                 [0.000862443, -0.13949, 0.00104658, -2.44107, 0.00117772, 2.34198, 0.78529],  # relative_dynamics_factor=0.05
+                # [0.000626151,-0.216687,0.000955045,-2.3831,0.00133318,2.20632,0.785184],
+                #[0.000708116,-0.180662,0.00096479,-2.41462,0.00136319,2.27398,0.785191], not good
             )
             # 0.000862443 -0.13949 0.00104658 -2.44107 0.00117772 2.34198 0.78529 for insert/peg
+        elif 'open' in task_name:
+            self.init_config = JointMotion(
+                [-1.28337,1.51706,1.31288,-1.42891,0.0334399,1.80664,0.584724],  # relative_dynamics_factor=0.05
+            )
             
         else:
             self.init_config = JointMotion(
@@ -51,7 +57,7 @@ class Franka():
         
         # 0.000862443 -0.13949 0.00104658 -2.44107 0.00117772 2.34198 0.78529 for insert/peg
         self.gripper_enable = gripper_enable
-        self.pos_range = np.array([0.05, 0.05, 0.0]) #[0.05, 0.05, 0.03] y,x,z
+        self.pos_range = np.array([0.03, 0.01, 0.03]) #[0.05, 0.05, 0.03] y,x,z for insert [0.03, 0.01, 0.03] for open
 
     # gripper.asyn_move may lead to problem, so change to move
     def robot_reset(self,random_init=True):
@@ -72,10 +78,12 @@ class Franka():
         '''
 
         self.robot.move(self.init_config)
+        print(f'Robot Reset with initial position')
+        time.sleep(0.5)
         if random_init:
             self.randomize_ee_position()
 
-        self.robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.20, 0.2)
+        self.robot.relative_dynamics_factor = RelativeDynamicsFactor(0.15, 0.15, 0.15) #(0.20, 0.20, 0.2) for insert
         #print(f'Robot Reset with gripper open {self.gripper_open_init}')
 
 
@@ -376,9 +384,7 @@ class RobotEnv(gym.Env):
 NUM_STEPS = {
     "reach": 200,
     "peg_hard": 150,
-    "pick_bean": 200,
-    "pick_place": 300,
-    "pick_cup": 175,
+    "open": 175,
 }
 
 def make(
@@ -387,11 +393,11 @@ def make(
     height,
     width,
     max_episode_len,
-    eval,
     pixel_keys,
     act_max,
     act_min,
-    task
+    task,
+    eval=False
 ):
     # Convert task_names, which is a list, to a dictionary
 
@@ -405,7 +411,8 @@ def make(
                    max_path_length=max_episode_len,
                    act_max=act_max,
                    act_min=act_min,
-                   task_name = task[0]
+                   task_name = task[0],
+                   eval = eval
                    )
 
     return env
