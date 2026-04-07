@@ -91,7 +91,7 @@ def test_camera_demo(demo_path=None,img_shape=(480,480)):
             if shadow_img is not None:
                 # cv2.addWeighted(src1, alpha, src2, beta, gamma)
                 # alpha = transparency of live feed; beta = transparency of shadow
-                display_img = cv2.addWeighted(color_image, 0.5, shadow_img, 0.5, 0)
+                display_img = cv2.addWeighted(color_image, 0.4, shadow_img, 0.6, 0)
             else:
                 display_img = live_img
 

@@ -371,7 +371,7 @@ class RegAgent:
         if retrieve:
             expert_size = self.replay_warmup
         else:
-            expert_size = 100
+            expert_size = 150
 
         self.buff = ReplayBuffer(obs_shape, action_shape[0],expert_ratio=expert_ratio,batch_size=batch_size, expert_size = expert_size)
 
