@@ -136,7 +136,7 @@ class WorkspaceIL:
 
     def eval(self,round,save_traj = True):
         self.agent.train(False)
-        num_eval_episodes =1
+        num_eval_episodes =10
         episode = 0
         success_list = []
         traj = []
@@ -223,18 +223,19 @@ class WorkspaceIL:
 def main():
     eval_list = [
         {"name": "BC",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/bc/.hydra/config.yaml"},
-         {"name": "ReG_BC",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/reg_bc/.hydra/config.yaml"},
-        {"name": "BC_RL",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/bc_rl/.hydra/config.yaml"},
-        {"name": "ReGIL",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/regil/.hydra/config.yaml"},
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/open/bc/200153/.hydra/config.yaml"},
+         #{"name": "ReG_BC",
+         #"config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/reg_bc/.hydra/config.yaml"},
+        #{"name": "BC_RL",
+         #"config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/bc_rl/.hydra/config.yaml"},
+        #{"name": "ReGIL",
+        # "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/open/regil/174612/.hydra/config.yaml"},
     ]
-    timestamp = datetime.now().strftime("%m%d%H%M")
-    work_dir = Path.cwd() / f"exp_local/{timestamp}_eval"
+    datestamp = datetime.now().strftime("%m%d")
+    timestamp = datetime.now().strftime("%H%M")
+    work_dir = Path.cwd() / f"exp_local/{datestamp}_eval/{timestamp}"
     env = None
-    scene_num = 10
+    scene_num = 1
 
     for scene_id in range(scene_num):
         for item in eval_list:

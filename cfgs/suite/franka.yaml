@@ -15,7 +15,7 @@ hidden_dim: 256
 # train settings
 num_train_steps: 21000
 log_every_steps: 500
-save_every_steps: 3000
+save_every_steps: 1000
 history: false
 history_len: 10
 
