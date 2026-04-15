@@ -158,7 +158,7 @@ def get_encoders(model_names=None):
     # Mapping from model names to encoder constructors
     encoder_registry = {
         'DINO': lambda: Dinov3(),
-        'CLIP': lambda: CLIP(),
+        #'CLIP': lambda: CLIP(),
         #'SigLip': lambda: SigLipv2()
     }
     models = {}

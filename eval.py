@@ -134,12 +134,12 @@ class WorkspaceIL:
 
 
 
-    def eval(self,round,save_traj = True):
+    def eval(self,round,num_eval_episodes,save_traj = True):
         self.agent.train(False)
-        num_eval_episodes =10
+        #num_eval_episodes =1
         episode = 0
         success_list = []
-        traj = []
+        
         eval_until_episode = utils.Until(num_eval_episodes) #
         robot_state = None
         while eval_until_episode(episode):
@@ -148,6 +148,7 @@ class WorkspaceIL:
 
             observation, done = self.env.reset()
             step = 0
+            traj = []
             
             self.video_recorder.init(observation['render'], enabled=True)
 
@@ -164,7 +165,7 @@ class WorkspaceIL:
                         )
                         traj.append(
                             {
-                                'observation': observation,
+                                'observation': observation['pixels'],
                                 'action': action,
                                 'robot_state':robot_state
                             }
@@ -201,6 +202,7 @@ class WorkspaceIL:
             self.video_recorder.save(f"eval_{round}_{episode}.mp4")
             if save_traj:
                 np.save(self.work_dir/f"eval_{round}_{episode}_{success}.npy", np.array(traj))
+                del traj
 
         with self.logger.log_and_dump_ctx(self.global_step, ty="eval") as log:
             log("episode", episode)
@@ -222,20 +224,22 @@ class WorkspaceIL:
 #@hydra.main(config_path="cfgs", config_name="config")
 def main():
     eval_list = [
-        {"name": "BC",
-         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/open/bc/200153/.hydra/config.yaml"},
-         #{"name": "ReG_BC",
-         #"config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/reg_bc/.hydra/config.yaml"},
-        #{"name": "BC_RL",
-         #"config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/bc_rl/.hydra/config.yaml"},
-        #{"name": "ReGIL",
-        # "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/open/regil/174612/.hydra/config.yaml"},
+        {"name": "ReGIL",
+        "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/regil/.hydra/config.yaml"},
+         {"name": "BC",
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/bc/.hydra/config.yaml"},
+         {"name": "ReG_BC",
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/reg_bc/.hydra/config.yaml"},
+        {"name": "BC_RL",
+         "config": "/home/carolzhang/Project/RegIL/ReG_IL_real/trained_model/insert-hard/bc_rl/.hydra/config.yaml"},
+        
     ]
     datestamp = datetime.now().strftime("%m%d")
     timestamp = datetime.now().strftime("%H%M")
     work_dir = Path.cwd() / f"exp_local/{datestamp}_eval/{timestamp}"
     env = None
-    scene_num = 1
+    scene_num = 4
+    round_num = 1
 
     for scene_id in range(scene_num):
         for item in eval_list:
@@ -256,7 +260,7 @@ def main():
             snapshots["bc"] = bc_snapshot
             workspace.load_snapshot(snapshots)
             print(f"\n" + "=" * 30+f"EVALUATING: {item['name']}"+ "=" * 30)
-            workspace.eval(scene_id)
+            workspace.eval(scene_id,round_num)
 
             del workspace.agent
             del workspace

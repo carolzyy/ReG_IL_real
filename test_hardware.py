@@ -91,7 +91,7 @@ def test_camera_demo(demo_path=None,img_shape=(480,480)):
             if shadow_img is not None:
                 # cv2.addWeighted(src1, alpha, src2, beta, gamma)
                 # alpha = transparency of live feed; beta = transparency of shadow
-                display_img = cv2.addWeighted(color_image, 0.4, shadow_img, 0.6, 0)
+                display_img = cv2.addWeighted(color_image, 0.5, shadow_img, 0.5, 0)
             else:
                 display_img = live_img
 
@@ -122,17 +122,17 @@ def test_franka():
 
     init_config = JointMotion([0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375,
                                0.785398163397])  # 0.0 > 0.001 to avoid errors
-    init_config = JointMotion(
+    init_config_peg = JointMotion(
                 [0.000862443, -0.13949, 0.00104658, -2.44107, 0.00117772, 2.34198, 0.78529],  # relative_dynamics_factor=0.05 peg-in hard
            )
-    init_config = JointMotion(
+    init_config_open = JointMotion(
                [-1.28337,1.51706,1.31288,-1.42891,0.0334399,1.80664,0.584724]
            )
-    robot.move(init_config)
+    robot.move(init_config_peg)
     # In franky/libfranka, RobotMode.UserStopped is typically 4
     #state = robot.state
     #print(state.robot_mode)
-    gripper = Gripper("172.16.0.2")
+    #gripper = Gripper("172.16.0.2")
     speed = 0.05  # [m/s]
     force = 20.0  # [N]
     width = 0.03 #[m]
@@ -373,6 +373,6 @@ def test_demo():
         time.sleep(1/20)
 
 test_franka() 
-#test_camera()
-path = '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/open.npy'
+test_camera()
+path = '/home/carolzhang/Project/RegIL/ReG_IL_real/expert_demos/peg_hard.npy'
 test_camera_demo(demo_path=path)

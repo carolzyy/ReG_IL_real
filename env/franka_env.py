@@ -48,19 +48,19 @@ class Franka():
             )  # for reach
         
         self.robot = robot
-        gripper = Gripper("172.16.0.2")
+        #gripper = Gripper("172.16.0.2")
         self.gripper_speed = 0.05  # [m/s]
         self.gripper_force = 20.0  # [N]
         self.gripper_width = 0.06  # [m]
         #gripper.move_async(self.gripper_width, self.gripper_speed)
-        self.gripper = gripper
+        #self.gripper = gripper
         
         # 0.000862443 -0.13949 0.00104658 -2.44107 0.00117772 2.34198 0.78529 for insert/peg
         self.gripper_enable = gripper_enable
-        self.pos_range = np.array([0.03, 0.01, 0.03]) #[0.05, 0.05, 0.03] y,x,z for insert [0.03, 0.01, 0.03] for open
+        self.pos_range = np.array([0.03, 0.03, 0.0]) #[0.05, 0.05, 0.03] y,x,z for insert [0.03, 0.01, 0.03] for open and reach  [0.05, 0.05, 0.00]
 
     # gripper.asyn_move may lead to problem, so change to move
-    def robot_reset(self,random_init=True):
+    def robot_reset(self,random_init=False):
         self.robot.recover_from_errors()
         self.robot.relative_dynamics_factor = 0.05
         '''
@@ -78,12 +78,12 @@ class Franka():
         '''
 
         self.robot.move(self.init_config)
-        print(f'Robot Reset with initial position')
+        #print(f'Robot Reset with initial position')
         time.sleep(0.5)
         if random_init:
             self.randomize_ee_position()
 
-        self.robot.relative_dynamics_factor = RelativeDynamicsFactor(0.15, 0.15, 0.15) #(0.20, 0.20, 0.2) for insert
+        self.robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.20, 0.2) #(0.15, 0.15, 0.15) #for open and reach
         #print(f'Robot Reset with gripper open {self.gripper_open_init}')
 
 
@@ -382,7 +382,7 @@ class RobotEnv(gym.Env):
             return obs,False
 
 NUM_STEPS = {
-    "reach": 200,
+    "reach": 150,
     "peg_hard": 150,
     "open": 175,
 }

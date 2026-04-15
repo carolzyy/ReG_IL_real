@@ -66,7 +66,7 @@ def get_action_matrix(state1,state2):
 
 def save_dataset(folder_path):
     base_dir = Path(folder_path)
-    for file_path in base_dir.glob('raw_open*.npy'):
+    for file_path in base_dir.glob('raw_reach*.npy'):
         print(f"Processing: {file_path.name}")
         processed_data = data_process(file_path)
         new_filename = f"dataset_{file_path.name}"

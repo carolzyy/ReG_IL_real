@@ -33,7 +33,7 @@ video_recorder = VideoRecorder(
 robot = Robot("172.16.0.2")
 robot.relative_dynamics_factor = RelativeDynamicsFactor(0.20, 0.20, 0.20) #(0.20, 0.40, 0.60)
 motion_dynamics_factor = 0.05 #multiplies the above factor during carteisan motion
-gripper = Gripper("172.16.0.2")
+#gripper = Gripper("172.16.0.2")
 speed = 0.05  # [m/s]
 force = 20.0  # [N]
 width = 0.08 #[m]
@@ -50,8 +50,8 @@ roll_scaling = 0.10
 pitch_scaling = 0.10
 yaw_scaling = 0.20
 
-gripper_open = True
-gripper.move(width, speed)
+gripper_open = False
+#gripper.move(width, speed)
 #gripper.move(0.0005, speed)
 
 episode = []
@@ -59,8 +59,8 @@ episode = []
 robot.recover_from_errors()
 
 init_config = JointMotion(
-    #[0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375, 0.785398163397]
-     [-1.28337,1.51706,1.31288,-1.42891,0.0334399,1.80664,0.584724]
+    [0.001, -0.04124589978198071, 0.001, -2.4789123424790103, 0.001, 2.4785007061817375, 0.785398163397]
+     #[-1.28337,1.51706,1.31288,-1.42891,0.0334399,1.80664,0.584724]
      #[-1.283, 1.100, 1.313, -1.950, 0.033, 1.650, 0.585]
     ) #0.0 > 0.001 to avoid errors for reach
 #init_config = JointMotion([0.000862443, -0.13949, 0.00104658, -2.44107, 0.00117772, 2.34198, 0.78529]) #peg-medium
@@ -148,7 +148,7 @@ if mouse:
 
     if save_ep.upper() == "Y":
         #ids = [int(re.search("*.npy", file).group(1)) for file in glob.glob(f"{dataset_path}/*.npy")]
-        ep_id = len(list(glob.glob(f"{dataset_path}/*.npy"))) +1
+        ep_id = len(list(glob.glob(f"{dataset_path}/*.npy"))) +2
         save_file_name = dataset_path/f"raw_{task_name}_{ep_id}.npy"
         np.save(save_file_name, episode)
         video_recorder.save(f'demo_raw_{task_name}_{ep_id}.mp4')
@@ -157,6 +157,6 @@ if mouse:
         video_recorder.save(f'demo_{task_name}.mp4')
         print(f"Demonstration not saved length is {len(episode)},, Video is saved to demo_{task_name}.mp4")
 
-    gripper.move_async(width, speed)
+    #gripper.move_async(width, speed)
     robot.move(init_config)
 
